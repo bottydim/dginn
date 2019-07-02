@@ -922,6 +922,16 @@ def visualise_layers_DG(DG,DG_full,model,percentage=False,skip_layers=[]):
     ax.set_yticklabels(layer_names)
 # ax.invert_yaxis()
 
+def get_input_layers(model,include_adjacent=True):
+    if include_adjacent:
+        input_layers = []
+        for l in model.layers:
+            if l.input in model.inputs:
+                input_layers.append(l)
+    else:
+        input_layers = list(filter(lambda x:type(x) == type(model.layers[0]),model.layers))
+    return input_layers
+
 def view_input_layers(relevances,input_layers):
     '''
     return: the importance of the input layers
