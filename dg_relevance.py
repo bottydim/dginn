@@ -18,11 +18,10 @@ verbose = False
 # computes the importance scores of neurons to upper layer neurons 
 # different methods 
 def compute_weight(model,fx_modulate=lambda x:x,verbose=False,local=False):
-'''
-model: model analyzed
-fx_module: extra weight processing
-'''
-
+    '''
+    model: model analyzed
+    fx_module: extra weight processing
+    '''
     omega_val = {}
     for l in model.layers:
         # skips layers w/o weights 
@@ -70,38 +69,72 @@ compute_weight_abs = lambda x:compute_weight(x,fx_modulate=np.abs)
 ### ACTIVATIONS ALL! 
 #LOCAL computaion - rename! 
 
-# TO BE CONFIRMED? 
-# def compute_activations_all_gen(data,fx_modulate=lambda x:x,layer_start=None,verbose=False):
 
-#     """
-#     return: does not average across data-points
-#     """
-#     def compute_activations_(model):
-#         omega_val = {}
+class Compute_Generator:
+    '''
+    A class that hold the different strategies used to compute Step I.
+    '''
 
-#         for l in model.layers:
-#             #1. compute values
-#             model_k = tf.keras.Model(inputs=[model.layers[0].input],outputs=[l.input])
-#             score_val = model_k.predict(data)
-#             score_val = fx_modulate(score_val)
-#             #1.1 aggragate across locations
-#             if len(score_val.shape) > 2:
-#                 score_val = np.mean(score_val,axis=(1, 2))
-#             #2. aggregate across datapoints
-#             mean = np.mean(np.abs(score_val),axis=0)
-#             #3. tokenize values
-#             #===redundant for activations
-#             omega_val[l] = mean
-# #             omega_val[l] = mean
-#         return omega_val
-#     return compute_activations_
+    def __init__(self,model,fx_modulate=lambda x:x,
+                          layer_start=None,
+                          agg_data_points = True,
+                          local = False,
+                verbose=False):
     
+        self.model = model
+        self.fx_modulate = fx_modulate
+        self.layer_start = layer_start
+        self.agg_data_points = agg_data_points
+        self.local = local
+        self.verbose = verbose
+    
+    def compute_activations(self,data):
+        model,fx_modulate,layer_start,agg_data_points,local,verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.local,self.verbose
+        omega_val = {}
+        for l in model.layers[layer_start:]:
+            vprint("layer:{}".format(l.name),verbose=verbose)
+            # concetenates the input for concatenate layers 
+            if type(l) is tf.keras.layers.Concatenate:
+                output = tf.keras.layers.concatenate(l.input)
+            else:
+                output = l.input
+            # faster way is to include all layers to the output array! 
+            model_k = tf.keras.Model(inputs=model.inputs,outputs=[output])
+            score_val = model_k.predict(data)
+            score_val = fx_modulate(score_val)
+            vprint("layer:{}--{}".format(l.name,score_val.shape),verbose=verbose)
+            #2 aggragate across locations
+            #2.1 4D input (c.f. images)
+            if len(score_val.shape) > 3:
 
+                score_val = np.mean(score_val,axis=(1, 2))
+                vprint("\t 4D shape:{}".format(score_val.shape),verbose=verbose)
+            #2.2 aggregate across 1D-input
+            elif len(score_val.shape) > 2:
+                score_val = np.mean(score_val,axis=(1))
+                vprint("\t 3D shape:{}".format(score_val.shape),verbose=verbose)
+            #3. aggregate across datapoints
+            #? Why abs? naturally this affect previous experiments 
+            if agg_data_points:
+                score_val = np.mean(np.abs(score_val),axis=0)
 
+            #4. tokenize values
+            #===redundant for activations
+            omega_val[l] = score_val
+            vprint("\t omega_val.shape:{}".format(score_val.shape),verbose=verbose)
+
+        return omega_val
+            
+    #TODO
+    # remaining functions
+
+    
 ### ACTIVATIONS Global
-def compute_activations_gen(data,fx_modulate=lambda x:x,layer_start=None,verbose=False):
+def compute_activations_gen(data,fx_modulate=lambda x:x,layer_start=None,
+                            agg_data_points = True, 
+                            verbose=False):
     """
-    
+    agg_data_points: whehter to aggragate across data points
     return: return all neuron importance for all layers starting from layer_start
     
     compute_activations = compute_activations_gen(X_test)
@@ -127,8 +160,11 @@ def compute_activations_gen(data,fx_modulate=lambda x:x,layer_start=None,verbose
                     #l.input is NOT working for multi input 
                     #crash @concatenate
                     
-            
-            output = l.input
+            # concetenates the input for concatenate layers 
+            if type(l) is tf.keras.layers.Concatenate:
+                output = tf.keras.layers.concatenate(l.input)
+            else:
+                output = l.input
             # faster way is to include all layers to the output array! 
             model_k = tf.keras.Model(inputs=model.inputs,outputs=[output])
             score_val = model_k.predict(data)
@@ -146,13 +182,13 @@ def compute_activations_gen(data,fx_modulate=lambda x:x,layer_start=None,verbose
                 vprint("\t 3D shape:{}".format(score_val.shape),verbose=verbose)
             #3. aggregate across datapoints
             #? Why abs? naturally this affect previous experiments 
-            mean = np.mean(np.abs(score_val),axis=0)
+            if agg_data_points:
+                score_val = np.mean(np.abs(score_val),axis=0)
 
             #4. tokenize values
             #===redundant for activations
-            omega_val[l] = mean
-            vprint("\t omega_val.shape:{}".format(mean.shape),verbose=verbose)
-#             omega_val[l] = mean
+            omega_val[l] = score_val
+            vprint("\t omega_val.shape:{}".format(score_val.shape),verbose=verbose)
 
         return omega_val
     return compute_activations_
@@ -803,7 +839,7 @@ def vprint(*args,verbose=False):
 def cf_dgs(dg_a,dg_b):
     '''
     count number of shared neurons
-    ''''
+    '''
     total = 0 
     for (k,v) in dg_a.items():
         a = set(v)
