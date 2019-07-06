@@ -1,6 +1,7 @@
 
+from abc import ABC, abstractmethod
 
-class AbstractAggregator():
+class AbstractAggregator(ABC):
 
     """
     Abstract class specifying methods necessary for dependency graph aggregators
