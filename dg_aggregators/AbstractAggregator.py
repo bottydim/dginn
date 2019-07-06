@@ -8,7 +8,7 @@ class AbstractAggregator(ABC):
     """
 
     @abstractmethod
-    def __init__(self, dep_graphs):
+    def __init__(self, dep_graphs, cls):
         """
         Aggregate a set of dependency graphs
         :param dep_graphs: set of dependency graphs to process

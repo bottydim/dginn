@@ -8,12 +8,13 @@ class CountAggregator(AbstractAggregator):
     An implementation of the count aggregator class
     """
 
-    def __init__(self, dep_graphs):
+    def __init__(self, dep_graphs, cls):
         """
         Keep count of every relevant node seen in all input dependency graphs
         :param dep_graphs: input dependency graphs
+        :param cls: the class these dependency graphs correspond to
         """
-
+        self.cls = cls
         self.node_counts = defaultdict(int)
         self.n_graphs = 0
 
@@ -29,8 +30,9 @@ class CountAggregator(AbstractAggregator):
 
         self.n_graphs += 1
 
-        for node in dep_graph:
-            self.node_counts[node] += 1
+        for (l, relevance) in dep_graph.items():
+            for node in relevance:
+                self.node_counts[(l, node)] += 1
 
 
 
@@ -46,7 +48,8 @@ class CountAggregator(AbstractAggregator):
 
         sim_score = 0
 
-        for node in dep_graph:
-            sim_score += self.node_counts[node] / self.n_graphs
+        for (l, relevance) in dep_graph.items():
+            for node in relevance:
+                sim_score += self.node_counts[(l, node)] / self.n_graphs
 
         return sim_score
