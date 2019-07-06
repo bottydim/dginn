@@ -1,10 +1,10 @@
 
 import tensorflow as tf
 import numpy as np
-from keras.models import Sequential
-from keras.layers import Dense, Conv2D, Dropout, Flatten, MaxPooling2D
+from tensorflow.python.keras import Sequential
+from tensorflow.python.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 from dg_aggregators.ProbAggregator import ProbAggregator
-
+from dg_relevance import compute_activations_gen, relevance_select
 
 def load_mnist():
 
@@ -70,6 +70,13 @@ def filter_dataset(dataset, classes):
     return filtered_points, filtered_labels
 
 
+# TODO: need to move this into the dg_relevance file later on
+def compute_dg(data, model):
+    compute_activations_abs = compute_activations_gen(data, fx_modulate=np.abs)
+    relevances = compute_activations_abs(model)
+    dg = relevance_select(relevances, input_layer=model.layers[0],threshold=0.5)
+    return dg
+
 
 
 def main():
@@ -107,7 +114,7 @@ def main():
     dgs_0, dgs_1 = [], []
 
     for (x, y) in zip(x_samples, y_samples):
-        dg = ... # TODO: compute dependency graph
+        dg = compute_dg(x_samples, model)
 
         if (y == 0):
             dgs_0.append(dg)
@@ -120,7 +127,7 @@ def main():
 
     # Compute distances from corrupted sample
     corrupt_sample = corrupt_x[0]
-    corrupt_dg = ... # TODO: compute dependency graph
+    corrupt_dg = compute_dg(x_samples, model)
     dist_to_0 = prob_dg_0.similarity(corrupt_dg)
     dist_to_1 = prob_dg_1.similarity(corrupt_dg)
 
