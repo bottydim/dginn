@@ -46,10 +46,18 @@ class CountAggregator(AbstractAggregator):
         :return: similarity score between dep_graph and previously-seen graphs
         """
 
-        sim_score = 0
 
+        # TODO: consider increasing the similarity weights of neurons closer to the output layer
+        sim_score = 0
+        node_count = 0
+
+        # Sum up similarity scores for all nodes
         for (l, relevance) in dep_graph.items():
             for node in relevance:
                 sim_score += self.node_counts[(l, node)] / self.n_graphs
+                node_count += 1
+
+        # Compute average similarity per node to account for different input graph sizes
+        sim_score /= node_count
 
         return sim_score

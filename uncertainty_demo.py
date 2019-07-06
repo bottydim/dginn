@@ -2,8 +2,8 @@
 import tensorflow as tf
 import numpy as np
 from tensorflow.python.keras import Sequential
-from tensorflow.python.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
-from dg_aggregators.ProbAggregator import ProbAggregator
+from tensorflow.python.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, InputLayer
+from dg_aggregators.CountAggregator import CountAggregator
 from dg_relevance import compute_activations_gen, relevance_select
 
 def load_mnist():
@@ -37,7 +37,8 @@ def build_sample_model(input_shape):
     """
 
     model = Sequential()
-    model.add(Conv2D(28, kernel_size=(3,3), input_shape=input_shape))
+    model.add(InputLayer(input_shape=input_shape))
+    model.add(Conv2D(28, kernel_size=(3,3)))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Flatten())  # Flattening the 2D arrays for fully connected layers
     model.add(Dense(128, activation=tf.nn.relu))
@@ -72,10 +73,26 @@ def filter_dataset(dataset, classes):
 
 # TODO: need to move this into the dg_relevance file later on
 def compute_dg(data, model):
-    compute_activations_abs = compute_activations_gen(data, fx_modulate=np.abs)
+    compute_activations_abs = compute_activations_gen(data, fx_modulate=np.abs, layer_start=1)
     relevances = compute_activations_abs(model)
-    dg = relevance_select(relevances, input_layer=model.layers[0],threshold=0.5)
+    dg = relevance_select(relevances, input_layer=model.layers[0], threshold=0.95)
     return dg
+
+
+
+
+def uncertainty_pred(x_sample, aggregators):
+    """
+    Return the class of the aggregator with the highest similarity score on the input sample
+    :param x_sample: input sample
+    :param aggregators: list of AbstractAggregator objects
+    :return: class of the AbstractAggregator with the highest similarity score on the given sample
+    """
+
+    sim_scores = np.array([aggregator.similarity(x_sample) for aggregator in aggregators])
+    top_aggregator = aggregators[np.argmax(sim_scores)]
+    predicted_class = top_aggregator.cls
+    return predicted_class
 
 
 
@@ -88,12 +105,6 @@ def main():
     classes = [0, 1]
     train_x, train_y = filter_dataset((all_x_train, all_y_train), classes)
     test_x, test_y = filter_dataset((all_x_test, all_y_test), classes)
-
-    # Flip labels of set of samples
-    n_corrupt = 40
-    train_x, train_y = train_x[:-n_corrupt], train_y[:-n_corrupt]
-    corrupt_x, corrupt_y = train_x[-n_corrupt:], train_y[-n_corrupt:]
-    corrupt_y = (corrupt_y + 1) % len(classes)
 
 
     # Create model
@@ -114,7 +125,10 @@ def main():
     dgs_0, dgs_1 = [], []
 
     for (x, y) in zip(x_samples, y_samples):
-        dg = compute_dg(x_samples, model)
+
+        x_sample = np.expand_dims(x, axis=0)
+
+        dg = compute_dg(x_sample, model)
 
         if (y == 0):
             dgs_0.append(dg)
@@ -122,18 +136,33 @@ def main():
             dgs_1.append(dg)
 
 
-    prob_dg_0 = ProbAggregator(dgs_0)
-    prob_dg_1 = ProbAggregator(dgs_1)
+    prob_dg_0 = CountAggregator(dgs_0, 0)
+    prob_dg_1 = CountAggregator(dgs_1, 1)
 
-    # Compute distances from corrupted sample
-    corrupt_sample = corrupt_x[0]
-    corrupt_dg = compute_dg(x_samples, model)
-    dist_to_0 = prob_dg_0.similarity(corrupt_dg)
-    dist_to_1 = prob_dg_1.similarity(corrupt_dg)
+    correct = 0
+    incorrect = 0
 
-    # Ideally want to show closer distance, despite mislabelling
-    print(dist_to_0)
-    print(dist_to_1)
+    for (sample, label) in zip(test_x[:400], test_y[:400]):
+        sample = np.expand_dims(sample, axis=0)
+        dg = compute_dg(sample, model)
+        sim_to_0 = prob_dg_0.similarity(dg)
+        sim_to_1 = prob_dg_1.similarity(dg)
+        pred_label = 0
+
+        if sim_to_0 > sim_to_1: pred_label = 0
+        else: pred_label = 1
+
+        if pred_label == label:
+            correct += 1
+            print("Corr. sim. : ", sim_to_0 - sim_to_1)
+        else:
+            incorrect += 1
+            print("Incorrect sim. : ", sim_to_0 - sim_to_1)
+
+
+    acc = float(correct) / float(correct + incorrect)
+
+    print("Dep. Graph Accuracy: ", acc * 100)
 
 
 main()
