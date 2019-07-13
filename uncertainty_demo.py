@@ -77,24 +77,31 @@ def filter_dataset(dataset, classes):
 def compute_dg(data, model):
     compute_activations_abs = compute_activations_gen(data, layer_start=1)
     relevances = compute_activations_abs(model)
-    dg = relevance_select(relevances, input_layer=model.layers[0], threshold=0.9)
+    dg = relevance_select(relevances, input_layer=model.layers[0], threshold=0.7)
     return dg
 
 
 
-
-def uncertainty_pred(x_sample, aggregators):
+def uncertainty_pred(dg, aggregators):
     """
     Return the class of the aggregator with the highest similarity score on the input sample
     :param x_sample: input sample
-    :param aggregators: list of AbstractAggregator objects
-    :return: class of the AbstractAggregator with the highest similarity score on the given sample
+    :param aggregators: dictionary of CountAggregator objects
+    :return: class of the aggregator with the highest similarity score on the given sample
     """
 
-    sim_scores = np.array([aggregator.similarity(x_sample) for aggregator in aggregators])
-    top_aggregator = aggregators[np.argmax(sim_scores)]
-    predicted_class = top_aggregator.cls
-    return predicted_class
+    max_sim, pred_label = -1, -1
+
+    for key in aggregators:
+        aggregator = aggregators[key]
+        cls = aggregator.cls
+        sim = aggregator.similarity(dg)
+
+        if sim > max_sim:
+            max_sim = sim
+            pred_label = cls
+
+    return pred_label, max_sim
 
 
 
@@ -118,13 +125,48 @@ def visualize_samples(samples):
 
 
 
-def sort_uncertain_points(x_samples, train_subsets, model, n_samples=100):
+def get_count_aggregators(x_train, y_train, model, n_samples):
+
+    # Obtain all labels in the data
+    all_classes = np.unique(y_train).tolist()
+
+    aggregators = {}
+
+    for cls in all_classes:
+
+        # Filter out data for particular class
+        cls_x, cls_y = filter_dataset((x_train, y_train), [cls])
+
+        # Randomly extract samples from class data
+        indices = np.random.choice(cls_x.shape[0], n_samples, replace=False)
+        sub_xs, sub_ys = cls_x[indices], cls_y[indices]
+        y = sub_ys[0]
+
+        # Create count aggregator from the samples
+        dgs = []
+
+        # Create dep. graphs for all drawn class samples
+        for (sub_x, sub_ys) in zip(sub_xs, sub_ys):
+            sub_x = np.expand_dims(sub_x, axis=0)
+            dg = compute_dg(sub_x, model)
+            dgs.append(dg)
+
+        # Create aggregator from drawn samples
+        aggregator = CountAggregator(dgs, y)
+        aggregators[y] = aggregator
+
+    return aggregators
+
+
+
+def sort_uncertain_points(x_samples, model, n_samples=100):
 
 
     # Run samples through model to get predicted labels
     predictions = np.argmax(model.predict(x_samples), axis=1)
 
-    label_aggregator = {}
+    aggregators = get_count_aggregators(x_samples, predictions, n_samples)
+
     similarities = {}
 
     for i, x_sample in enumerate(x_samples):
@@ -138,30 +180,8 @@ def sort_uncertain_points(x_samples, train_subsets, model, n_samples=100):
         # Obtain the sample predicted label
         y_pred = predictions[i]
 
-        # If the count aggregator for that label has not been generated: generate it
-        if y_pred not in label_aggregator:
-
-            # Obtain the corresponding training dataset
-            x_train = train_subsets[y_pred]
-
-            # Randomly sample from this training dataset
-            indices = np.random.choice(x_train.shape[0], n_samples, replace=False)
-            train_samples = x_train[indices]
-
-            # Create count aggregator from the samples
-            dgs = []
-
-            for train_sample in train_samples:
-                x = np.expand_dims(train_sample, axis=0)
-                dg = compute_dg(x, model)
-                dgs.append(dg)
-
-            aggregator = CountAggregator(dgs, y_pred)
-            label_aggregator[y_pred] = aggregator
-
-
         # Compute similarity of the test point to the sampled points
-        similarities[i] = label_aggregator[y_pred].similarity(dg_query)
+        similarities[i] = aggregators[y_pred].similarity(dg_query)
 
 
     # Sort points by their similarity
@@ -215,15 +235,67 @@ def run_uncertainty_demo():
 
 
 
+def mislabelled_data_demo():
+
+    # Load dataset
+    train_x, train_y, test_x, test_y = load_mnist()
+
+    # Create model
+    input_shape = train_x.shape[1:]
+    model = build_sample_model(input_shape)
+
+    # Train model
+    model.fit(x=train_x, y=train_y, epochs=2)
+
+    # Get sample aggregators
+    aggregators = get_count_aggregators(train_x, train_y, model, 60)
+
+    # Obtain subset of incorrectly-labelled training points
+    preds = np.argmax(model.predict(train_x), axis=1)
+    incorrects = np.nonzero(preds != train_y)[0]
+    incorrect_samples, incorrect_labels = train_x[incorrects], train_y[incorrects]
+    incorrect_samples, incorrect_labels = incorrect_samples[:100], incorrect_labels[:100]
+
+    # Select random set of samples
+    n_mislabelled = 100
+    indices = np.random.choice(train_x.shape[0], n_mislabelled, replace=False)
+    random_x, random_y = train_x[indices], train_y[indices]
+
+    combined_x, combined_y = np.concatenate((incorrect_samples, random_x), axis=0), \
+                             np.concatenate((incorrect_labels, random_y), axis=0)
+
+    print("No samples: ", combined_x.shape[0])
+
+    sim_scores = {}
+
+    for i, sample in enumerate(combined_x):
+
+        print("Iteration ", i)
+
+        sample = np.expand_dims(sample, axis=0)
+        dg = compute_dg(sample, model)
+        pred_label, sim_score = uncertainty_pred(dg, aggregators)
+        sim_scores[i] = sim_score
+
+
+    sorted_keys = sorted(sim_scores, key=sim_scores.get)
+
+    mislabelled = sum([1 for key in sorted_keys[:100] if key > 100])
+    print("Mislabelled: ", mislabelled)
+
+    return sorted_keys
+
+
 
 
 
 
 
 def main():
-    run_uncertainty_demo()
 
+    print(mislabelled_data_demo())
 
+    # run_uncertainty_demo()
 
 
 
