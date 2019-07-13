@@ -1,10 +1,13 @@
-
 import tensorflow as tf
 import numpy as np
 from tensorflow.python.keras import Sequential
 from tensorflow.python.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, InputLayer
+from dg_relevance import compute_activations_gen, relevance_select, compute_weight_activations_gen
 from dg_aggregators.CountAggregator import CountAggregator
-from dg_relevance import compute_activations_gen, relevance_select
+import matplotlib.pyplot as plt
+import math
+from collections import defaultdict
+
 
 def load_mnist():
 
@@ -42,7 +45,6 @@ def build_sample_model(input_shape):
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Flatten())  # Flattening the 2D arrays for fully connected layers
     model.add(Dense(128, activation=tf.nn.relu))
-    model.add(Dropout(0.2))
     model.add(Dense(10, activation=tf.nn.softmax))
 
     model.compile(optimizer='adam',
@@ -73,9 +75,9 @@ def filter_dataset(dataset, classes):
 
 # TODO: need to move this into the dg_relevance file later on
 def compute_dg(data, model):
-    compute_activations_abs = compute_activations_gen(data, fx_modulate=np.abs, layer_start=1)
+    compute_activations_abs = compute_activations_gen(data, layer_start=1)
     relevances = compute_activations_abs(model)
-    dg = relevance_select(relevances, input_layer=model.layers[0], threshold=0.95)
+    dg = relevance_select(relevances, input_layer=model.layers[0], threshold=0.9)
     return dg
 
 
@@ -96,15 +98,104 @@ def uncertainty_pred(x_sample, aggregators):
 
 
 
-def main():
+def visualize_samples(samples):
+
+    cols = 4
+    rows = math.ceil(len(samples)/cols)
+    fig = plt.figure(figsize=(8, 8))
+
+    for i in range(1, len(samples)+1):
+
+        # Remove channel dimension
+        sample = samples[i-1][:, :, 0]
+
+        # Plot image
+        fig.add_subplot(rows, cols, i)
+        plt.imshow(sample, cmap='gray')
+
+    plt.show()
+
+
+
+
+def sort_uncertain_points(x_samples, train_subsets, model, n_samples=100):
+
+
+    # Run samples through model to get predicted labels
+    predictions = np.argmax(model.predict(x_samples), axis=1)
+
+    label_aggregator = {}
+    similarities = {}
+
+    for i, x_sample in enumerate(x_samples):
+
+        print("Iteration ", i)
+
+        # Compute dep. graph of new sample
+        x_sample = np.expand_dims(x_sample, axis=0)
+        dg_query = compute_dg(x_sample, model)
+
+        # Obtain the sample predicted label
+        y_pred = predictions[i]
+
+        # If the count aggregator for that label has not been generated: generate it
+        if y_pred not in label_aggregator:
+
+            # Obtain the corresponding training dataset
+            x_train = train_subsets[y_pred]
+
+            # Randomly sample from this training dataset
+            indices = np.random.choice(x_train.shape[0], n_samples, replace=False)
+            train_samples = x_train[indices]
+
+            # Create count aggregator from the samples
+            dgs = []
+
+            for train_sample in train_samples:
+                x = np.expand_dims(train_sample, axis=0)
+                dg = compute_dg(x, model)
+                dgs.append(dg)
+
+            aggregator = CountAggregator(dgs, y_pred)
+            label_aggregator[y_pred] = aggregator
+
+
+        # Compute similarity of the test point to the sampled points
+        similarities[i] = label_aggregator[y_pred].similarity(dg_query)
+
+
+    # Sort points by their similarity
+    sorted_keys = sorted(similarities, key=similarities.get)
+    sorted_vals = [x_samples[i] for i in sorted_keys]
+
+    # Extract least similar 30 points
+    sorted_vals = sorted_vals[:40]
+
+    visualize_samples(sorted_vals)
+
+
+
+
+
+
+def run_uncertainty_demo():
+    """
+    Script demonstrating uncertainty functionality offered by dep. graphs.
+
+    Sorts MNIST points by their uncertainty and prints them out.
+
+    Idea: high uncertainty points are "strange" and seem atypical, compared to training data
+    """
 
     # Load dataset
-    all_x_train, all_y_train, all_x_test, all_y_test = load_mnist()
+    train_x, train_y, test_x, test_y = load_mnist()
 
-    # Filter out two classes (focus on simple binary classification problem)
-    classes = [0, 1]
-    train_x, train_y = filter_dataset((all_x_train, all_y_train), classes)
-    test_x, test_y = filter_dataset((all_x_test, all_y_test), classes)
+    # Split datasets by label into sub-datasets
+    sub_datasets = {}
+
+    for label in range(10):
+        ds, _ = filter_dataset((train_x, train_y), [label])
+        sub_datasets[label] = ds
 
 
     # Create model
@@ -112,57 +203,28 @@ def main():
     model = build_sample_model(input_shape)
 
     # Train model
-    model.fit(x=train_x, y=train_y, epochs=1)
-
-    # Select set of random training samples
-    n_samples = 200
-    indices = np.random.choice(train_x.shape[0], n_samples, replace=False)
-    x_samples = train_x[indices]
-    y_samples = train_y[indices]
+    #model.fit(x=train_x, y=train_y, epochs=4)
 
 
-    # Aggregate dependency graphs of selected points
-    dgs_0, dgs_1 = [], []
+    # Select points to inspect
+    selected_points = test_x[:100]
 
-    for (x, y) in zip(x_samples, y_samples):
-
-        x_sample = np.expand_dims(x, axis=0)
-
-        dg = compute_dg(x_sample, model)
-
-        if (y == 0):
-            dgs_0.append(dg)
-        else:
-            dgs_1.append(dg)
+    # Visualise points, sorted by their uncertainty
+    sort_uncertain_points(selected_points, sub_datasets, model, n_samples=100)
 
 
-    prob_dg_0 = CountAggregator(dgs_0, 0)
-    prob_dg_1 = CountAggregator(dgs_1, 1)
-
-    correct = 0
-    incorrect = 0
-
-    for (sample, label) in zip(test_x[:400], test_y[:400]):
-        sample = np.expand_dims(sample, axis=0)
-        dg = compute_dg(sample, model)
-        sim_to_0 = prob_dg_0.similarity(dg)
-        sim_to_1 = prob_dg_1.similarity(dg)
-        pred_label = 0
-
-        if sim_to_0 > sim_to_1: pred_label = 0
-        else: pred_label = 1
-
-        if pred_label == label:
-            correct += 1
-            print("Corr. sim. : ", sim_to_0 - sim_to_1)
-        else:
-            incorrect += 1
-            print("Incorrect sim. : ", sim_to_0 - sim_to_1)
 
 
-    acc = float(correct) / float(correct + incorrect)
 
-    print("Dep. Graph Accuracy: ", acc * 100)
+
+
+
+
+def main():
+    run_uncertainty_demo()
+
+
+
 
 
 main()
