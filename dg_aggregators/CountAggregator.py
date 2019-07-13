@@ -54,10 +54,7 @@ class CountAggregator(AbstractAggregator):
         # Sum up similarity scores for all nodes
         for (l, relevance) in dep_graph.items():
             for node in relevance:
-                sim_score += self.node_counts[(l, node)] / self.n_graphs
+                sim_score += self.node_counts[(l, node)]
                 node_count += 1
-
-        # Compute average similarity per node to account for different input graph sizes
-        sim_score /= node_count
 
         return sim_score
