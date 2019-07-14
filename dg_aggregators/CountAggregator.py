@@ -22,6 +22,7 @@ class CountAggregator(AbstractAggregator):
             self.update(dep_graph)
 
 
+
     def update(self, dep_graph):
         """
         Update neuron counts
@@ -56,5 +57,7 @@ class CountAggregator(AbstractAggregator):
             for node in relevance:
                 sim_score += self.node_counts[(l, node)]
                 node_count += 1
+
+        sim_score /= self.n_graphs
 
         return sim_score
