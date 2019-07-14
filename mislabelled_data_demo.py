@@ -9,6 +9,7 @@ Things to try:
     - Dependency graph computation approach (dg_relevance)
     - Aggregation approach + similarity to aggregator
     - Number of aggregator samples
+    - Depth of the model
 """
 
 
@@ -28,7 +29,7 @@ def main():
     model = build_sample_model(input_shape)
 
     # Train model
-    model.fit(x=train_x, y=train_y, epochs=5)
+    model.fit(x=train_x, y=train_y, epochs=2)
 
     # Obtain subset of incorrectly labelled training points
     preds = np.argmax(model.predict(train_x), axis=1)
@@ -90,7 +91,8 @@ def main():
 
     # Count how many mislabelled samples are in the second half of the sorted keys
     # (i.e. have high similarity)
-    mislabelled = sum([1 for key in sorted_keys[100:] if key >= 100])
+    n_incorrect = len(incorrect_labels)
+    mislabelled = sum([1 for key in sorted_keys[n_incorrect:] if key >= n_incorrect])
     print("Mislabelled: ", mislabelled)
 
     return sorted_keys
@@ -98,3 +100,15 @@ def main():
 
 
 main()
+
+
+
+
+"""
+
+Facts:
+    1) High certainty corresponds to higher chance of a correct prediction
+    2) Mislabelled samples have higher certainty than misclassified ones (though difference is not pronounced enough)
+    3) Sometimes, uncertainty gives correct estimate, whilst the model does not    
+
+"""

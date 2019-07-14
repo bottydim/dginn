@@ -47,6 +47,8 @@ def build_sample_model(input_shape):
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Flatten())  # Flattening the 2D arrays for fully connected layers
     model.add(Dense(128, activation=tf.nn.relu))
+    model.add(Dense(64, activation=tf.nn.relu))
+    model.add(Dense(32, activation=tf.nn.relu))
     model.add(Dense(4, activation=tf.nn.softmax))
 
     model.compile(optimizer='adam',
