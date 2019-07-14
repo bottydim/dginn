@@ -7,21 +7,17 @@ from aggregator_utils import get_count_aggregators, compute_dg
 
 
 
-
-
-
-
-def sort_uncertain_points(x_samples, model, n_samples=100):
-
+def sort_uncertain_points(query_x, train_x, train_y, model, n_samples=100):
 
     # Run samples through model to get predicted labels
-    predictions = np.argmax(model.predict(x_samples), axis=1)
+    predictions = np.argmax(model.predict(query_x), axis=1)
 
-    aggregators = get_count_aggregators(x_samples, predictions, n_samples)
+    # Create aggregators from the training samples
+    aggregators = get_count_aggregators(train_x, train_y, model, n_samples)
 
     similarities = {}
 
-    for i, x_sample in enumerate(x_samples):
+    for i, x_sample in enumerate(query_x):
 
         print("Iteration ", i)
 
@@ -38,11 +34,13 @@ def sort_uncertain_points(x_samples, model, n_samples=100):
 
     # Sort points by their similarity
     sorted_keys = sorted(similarities, key=similarities.get)
-    sorted_vals = [x_samples[i] for i in sorted_keys]
+    sorted_vals = [query_x[i] for i in sorted_keys]
 
     # Extract least similar 30 points
     sorted_vals = sorted_vals[:40]
 
+    # Visualise samples
+    # Idea: samples with lower similarity will seem stranger
     visualize_samples(sorted_vals)
 
 
@@ -62,35 +60,23 @@ def main():
     # Load dataset
     train_x, train_y, test_x, test_y = load_mnist()
 
-    # Split datasets by label into sub-datasets
-    sub_datasets = {}
-
-    for label in range(10):
-        ds, _ = filter_dataset((train_x, train_y), [label])
-        sub_datasets[label] = ds
-
+    # Filter out subset of classes
+    selected_classes = [0, 1, 2, 3]
+    train_x, train_y = filter_dataset((train_x, train_y), selected_classes)
+    test_x, test_y = filter_dataset((test_x, test_y), selected_classes)
 
     # Create model
     input_shape = train_x.shape[1:]
     model = build_sample_model(input_shape)
 
     # Train model
-    model.fit(x=train_x, y=train_y, epochs=4)
-
+    model.fit(x=train_x, y=train_y, epochs=2)
 
     # Select points to inspect
     selected_points = test_x[:100]
 
     # Visualise points, sorted by their uncertainty
-    sort_uncertain_points(selected_points, sub_datasets, model, n_samples=100)
-
-
-
-
-
-
-
-
+    sort_uncertain_points(selected_points, train_x, train_y, model, n_samples=100)
 
 
 main()
