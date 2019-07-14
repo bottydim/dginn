@@ -9,7 +9,7 @@ from dg_relevance import compute_activations_gen, \
 def compute_dg(data, model):
     compute_activations_abs = compute_activations_gen(data, layer_start=1, fx_modulate=np.abs)
     relevances = compute_activations_abs(model)
-    dg = relevance_select(relevances, input_layer=model.layers[0], threshold=0.9)
+    dg = relevance_select(relevances, input_layer=model.layers[0], threshold=0.95)
     return dg
 
 

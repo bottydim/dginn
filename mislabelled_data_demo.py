@@ -4,6 +4,14 @@ from dataset_utils import filter_dataset
 from aggregator_utils import get_count_aggregators, uncertainty_pred, compute_dg
 
 
+"""
+Things to try:
+    - Dependency graph computation approach (dg_relevance)
+    - Aggregation approach + similarity to aggregator
+    - Number of aggregator samples
+"""
+
+
 
 def main():
 
@@ -20,7 +28,7 @@ def main():
     model = build_sample_model(input_shape)
 
     # Train model
-    model.fit(x=train_x, y=train_y, epochs=2)
+    model.fit(x=train_x, y=train_y, epochs=5)
 
     # Obtain subset of incorrectly labelled training points
     preds = np.argmax(model.predict(train_x), axis=1)
@@ -75,7 +83,9 @@ def main():
     print(sorted_keys)
 
     labels = [agg_labels[i] for i in sorted_keys]
+    scores = [sim_scores[i] for i in sorted_keys]
     print(labels)
+    print(scores)
 
 
     # Count how many mislabelled samples are in the second half of the sorted keys
