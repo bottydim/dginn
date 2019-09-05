@@ -3,7 +3,7 @@ from mnist_loader import load_mnist, build_sample_model
 from dataset_utils import filter_dataset
 from data_visualizers import visualize_samples
 from aggregator_utils import get_count_aggregators, compute_dg
-
+from core import *
 
 
 
@@ -16,14 +16,14 @@ def sort_uncertain_points(query_x, train_x, train_y, model, n_samples=100):
     aggregators = get_count_aggregators(train_x, train_y, model, n_samples)
 
     similarities = {}
-
+    compute_fx = Activations_Computer(model=model, agg_data_points=True)
     for i, x_sample in enumerate(query_x):
 
         print("Iteration ", i)
 
         # Compute dep. graph of new sample
         x_sample = np.expand_dims(x_sample, axis=0)
-        dg_query = compute_dg(x_sample, model)
+        dg_query = compute_dg(x_sample, compute_fx)
 
         # Obtain the sample predicted label
         y_pred = predictions[i]

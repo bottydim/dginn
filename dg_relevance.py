@@ -1,8 +1,10 @@
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+if __name__ == '__main__':
+    tf.enable_eager_execution()
 from matplotlib import pyplot as plt
-from utils import vprint
+from utils import vprint, Timer
 
 # this should be only in the call module, all other modules should not have it!!!
 # best keep it in the main fx! 
@@ -449,7 +451,6 @@ def select_random(relevance, threshold):
 def relevance_select_(omega_val, input_layer, select_fx_):
     relevant = {}
 
-    # TODO across non-aggragated data points
     for l, relevance in omega_val.items():
         if type(input_layer) is list and l in input_layer:
             # non-aggragated data points
@@ -460,21 +461,22 @@ def relevance_select_(omega_val, input_layer, select_fx_):
         elif l == input_layer:
             # non-aggragated data points
             if relevance.shape[0] > 1:
-                relevant[l] = [range(relevance.shape[1]) for _ in range(relevance.shape[0])]
+                relevant[l] = np.array([range(relevance.shape[1]) for _ in range(relevance.shape[0])])
             else:
-                relevant[l] = range(len(relevance))
+                relevant[l] = np.array(range(len(relevance)))
                 # process layers without weights
         elif l.weights == []:
             # non-aggragated data points
             if relevance.shape[0] > 1:
-                relevant[l] = [[] for _ in range(relevance.shape[0])]
+                relevant[l] = np.array([[] for _ in range(relevance.shape[0])])
             else:
-                relevant[l] = []
+                #in the event of bugs: used to be [] vs np.array([])
+                relevant[l] = np.array([])
 
         else:
             # non-aggragated data points
             if relevance.shape[0] > 1:
-                relevant[l] = np.apply_along_axis(select_fx_, 0, relevance)
+                relevant[l] = np.apply_along_axis(select_fx_, 1, relevance)
             else:
                 relevant[l] = []
                 idx = select_fx_(relevance)
@@ -1103,44 +1105,37 @@ def plot_input_importance(relevance_list, input_layers, data_set_cls_dict):
     ax.legend(plots, input_layer_labels)
 
 
-# TODO Remove
-#### UTILS 
+def main():
+    from mnist_loader import load_mnist, build_sample_model
+    from dataset_utils import filter_dataset
+    from aggregator_utils import get_count_aggregators, uncertainty_pred, compute_dg
+    from core import Activations_Computer
+    import os
 
-import time
+    # Load dataset
+    X_train, y_train, X_test, y_test = load_mnist()
+
+    # Filter out subset of classes
+    selected_classes = [0, 1, 2, 3]
+    X_train, y_train = filter_dataset((X_train, y_train), selected_classes)
+    X_test, y_test = filter_dataset((X_test, y_test), selected_classes)
+
+    # Create model
+    input_shape = X_train.shape[1:]
+    model = build_sample_model(input_shape)
+
+    model_save_path = "./mnist_model.h5"
+    if not os.path.exists(model_save_path):
+        # Train model
+        model.fit(x=X_train, y=y_train, epochs=2)
+        model.save_weights(model_save_path)
+    else:
+        model.load_weights(model_save_path)
+
+    compute_fx = Activations_Computer(model=model, agg_data_points=False)
+    relevances = compute_fx(X_train[0:100, :])
+    dgs = relevance_select(relevances, input_layer=compute_fx.model.layers[0], threshold=0.20)
 
 
-# %load -r 78-111 /home/btd26/xai-research/xai/xai/utils/utils.py
-class Timer:
-    '''
-    # Start timer
-  my_timer = Timer()
-
-  # ... do something
-
-  # Get time string:
-  time_hhmmss = my_timer.get_time_hhmmss()
-  print("Time elapsed: %s" % time_hhmmss )
-
-  # ... use the timer again
-  my_timer.restart()
-
-  # ... do something
-
-  # Get time:
-  time_hhmmss = my_timer.get_time_hhmmss()
-
-  # ... etc
-    '''
-
-    def __init__(self):
-        self.start = time.time()
-
-    def restart(self):
-        self.start = time.time()
-
-    def get_time_hhmmss(self):
-        end = time.time()
-        m, s = divmod(end - self.start, 60)
-        h, m = divmod(m, 60)
-        time_str = "%02d:%02d:%02d" % (h, m, s)
-        return time_str
+if __name__ == '__main__':
+    main()

@@ -1,7 +1,7 @@
+.ipynb_checkpoints/
 
 .DS_Store
 *.pyc
 *.pyc
 __pycache__/dg_relevance.cpython-35.pyc
-*.pyc
-*.pyc
+*.h5

@@ -1,6 +1,6 @@
 from dg_aggregators.AbstractAggregator import AbstractAggregator
 from collections import defaultdict
-
+import numpy as np
 
 class CountAggregator(AbstractAggregator):
 
@@ -18,11 +18,14 @@ class CountAggregator(AbstractAggregator):
         self.node_counts = defaultdict(int)
         self.n_graphs = 0
 
+
         for dep_graph in dep_graphs:
             self.update(dep_graph)
 
 
-
+    # TODO at the moment the funcctio nsi meaningless
+    # what needsto happen is
+    # either in init or for consistency in update!
     def update(self, dep_graph):
         """
         Update neuron counts
@@ -32,8 +35,9 @@ class CountAggregator(AbstractAggregator):
         self.n_graphs += 1
 
         for (l, relevance) in dep_graph.items():
-            for node in relevance:
-                self.node_counts[(l, node)] += 1
+            uniq_neurons, freq_count = np.unique(relevance, return_counts=True)
+            for i,node in enumerate(uniq_neurons):
+                self.node_counts[(l, node)] += freq_count[i]
 
 
 
