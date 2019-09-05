@@ -3,13 +3,12 @@ from dataset_utils import filter_dataset
 from dg_aggregators.CountAggregator import CountAggregator
 from dg_relevance import compute_activations_gen, \
     relevance_select, compute_weight_activations_gen, compute_grads_gen, compute_weight
-
+from core import *
 
 # TODO: need to move this into the dg_relevance file later on
-def compute_dg(data, model):
-    compute_activations_abs = compute_activations_gen(data, layer_start=1, fx_modulate=np.abs)
-    relevances = compute_activations_abs(model)
-    dg = relevance_select(relevances, input_layer=model.layers[0], threshold=0.95)
+def compute_dg(data, compute_fx):
+    relevances = compute_fx(data)
+    dg = relevance_select(relevances, input_layer=compute_fx.model.layers[0], threshold=0.20)
     return dg
 
 
@@ -41,13 +40,16 @@ def uncertainty_pred(dg, aggregators):
     return pred_label, max_sim
 
 
+# @Dima, this is taking far too long
+# I think a better appraoch could be to compute the relevances for all samples
+# & then apply analysis using the relevance fx!
 def get_count_aggregators(x_train, y_train, model, n_samples):
 
     # Obtain all labels in the data
     all_classes = np.unique(y_train).tolist()
 
     aggregators = {}
-
+    compute_fx = Activations_Computer(model=model,agg_data_points=True)
     for cls in all_classes:
 
         print("Aggregating class ", cls)
@@ -66,7 +68,7 @@ def get_count_aggregators(x_train, y_train, model, n_samples):
         # Create dep. graphs for all drawn class samples
         for (sub_x, sub_y) in zip(sub_xs, sub_ys):
             sub_x = np.expand_dims(sub_x, axis=0)
-            dg = compute_dg(sub_x, model)
+            dg = compute_dg(sub_x,compute_fx)
             dgs.append(dg)
 
         # Create aggregator from drawn samples

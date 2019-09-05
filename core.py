@@ -1,7 +1,9 @@
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from abc import ABC, abstractmethod
 from matplotlib import pyplot as plt
+from utils import *
 
 # this should be only in the call module, all other modules should not have it!!!
 # best keep it in the main fx!
@@ -12,7 +14,9 @@ config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 
 sess = tf.Session(config=config)
-class Relevance_Computer(object):
+
+
+class Relevance_Computer(ABC):
     '''
     A class that hold the different strategies used to compute Step I.
     '''
@@ -22,7 +26,6 @@ class Relevance_Computer(object):
                  agg_data_points=True,
                  local=False,
                  verbose=False):
-
         self.model = model
         self.fx_modulate = fx_modulate
         self.layer_start = layer_start
@@ -30,18 +33,79 @@ class Relevance_Computer(object):
         self.local = local
         self.verbose = verbose
 
-    def __call__(self,data):
-        pass
+    @abstractmethod
+    def __call__(self, data):
+        '''
+
+        :param data: dataset to compute neuron relevances for
+        :return: th
+        '''
 
 
-class Activations_Computer(Relevance_Computer):
-
-    def __init__(self, model, fx_modulate=lambda x: x,
+class Weights_Computer(Relevance_Computer):
+    def __init__(self, model, fx_modulate=np.abs,
                  layer_start=None,
                  agg_data_points=True,
                  local=False,
                  verbose=False):
-        super(Activations_Computer, self).__init__(model, fx_modulate, layer_start, agg_data_points,local,verbose)
+        super().__init__(model, fx_modulate, layer_start, agg_data_points, local, verbose)
+        if agg_data_points:
+            print("this property is reduntant for Weights Computer")
+    def __call__(self, data):
+        return self.compute_weight(data)
+
+    def compute_weight(self,model, fx_modulate=lambda x: x, verbose=False, local=False):
+        '''
+        model: model analyzed
+        fx_module: extra weight processing
+        '''
+        model, fx_modulate, layer_start, agg_data_points, local, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.local, self.verbose
+
+        omega_val = {}
+        for l in model.layers:
+            # skips layers w/o weights
+            # e.g. input/pooling/concatenate/flatten
+            if l.weights == []:
+                vprint(l.name, verbose=verbose)
+                omega_val[l] = np.array([])
+                continue
+            vprint("layer:{}".format(l.name), verbose=verbose)
+            # 1. compute values
+            vprint("w.shape:{}".format(l.weights[0].shape), verbose=verbose)
+            score_val = l.weights[0][:, :]
+            score_val = fx_modulate(score_val)
+
+            # 2 aggragate across locations
+            # if convolutional - check if convolutional using the shape
+            # 2.1 4D input (c.f. images)
+            if len(score_val.shape) > 3:
+                vprint("\tshape:{}", verbose=verbose)
+                vprint("\tscore_val.shape:{}".format(score_val.shape), verbose=verbose)
+                score_val = np.mean(score_val, axis=(0, 1))
+            elif len(score_val.shape) > 2:
+                # 3D convolutional
+                vprint("\tshape:{}", verbose=verbose)
+                vprint("\tscore_val.shape:{}".format(score_val.shape), verbose=verbose)
+                score_val = np.mean(score_val, axis=(0))
+            # 3. aggregate across datapoints
+            # ===redundant for weights
+            # 4. Global Aggregation: tokenize values across upper layer neurons
+            if not local:
+                score_agg = np.mean(score_val, axis=-1)
+            else:
+                score_agg = score_val
+            vprint("\tomega_val.shape:{}".format(score_agg.shape), verbose=verbose)
+            omega_val[l] = score_agg
+
+        return omega_val
+
+class Activations_Computer(Relevance_Computer):
+    def __init__(self, model, fx_modulate=np.abs,
+                 layer_start=None,
+                 agg_data_points=True,
+                 local=False,
+                 verbose=False):
+        super().__init__(model, fx_modulate, layer_start, agg_data_points, local, verbose)
 
     def __call__(self, data):
         return self.compute_activations(data)
@@ -49,6 +113,8 @@ class Activations_Computer(Relevance_Computer):
     def compute_activations(self, data):
         model, fx_modulate, layer_start, agg_data_points, local, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.local, self.verbose
         omega_val = {}
+        # it is useless to compute concatenate & flatten layers!
+        # also it could be useful to solve the transition between the last convo & first dense!
         for l in model.layers[layer_start:]:
             vprint("layer:{}".format(l.name), verbose=verbose)
             # concetenates the input for concatenate layers
@@ -83,25 +149,29 @@ class Activations_Computer(Relevance_Computer):
 
         return omega_val
 
+
 # TODO
 # remaining functions
 
-class Gradient_Computer(Relevance_Computer):
-
+class Gradients_Computer(Relevance_Computer):
     def __init__(self, model, fx_modulate=lambda x: x,
-                 loss_=lambda x: tf.reduce_sum(x[:, :]),
+                 loss=lambda x: tf.reduce_sum(x[:, :]),
                  batch_size=128,
                  layer_start=None,
                  agg_data_points=True,
                  local=False,
                  verbose=False):
-        super(Activations_Computer, self).__init__(model, fx_modulate, layer_start, agg_data_points,local,verbose)
+        super().__init__(model, fx_modulate, layer_start, agg_data_points, local, verbose)
         self.loss = loss
         self.batch_size = batch_size
+
     def __call__(self, data):
-        return self.compute_activations(data)
+        return self.compute_grads(data)
 
     def compute_grads(self, data):
+        model, fx_modulate, layer_start, agg_data_points, local, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.local, self.verbose
+        loss_ = self.loss
+        batch_size = self.batch_size
         omega_val = {}
         for l in model.layers:
             # skips layers w/o weights
@@ -180,6 +250,75 @@ class Gradient_Computer(Relevance_Computer):
 
             vprint("\t omega_val.shape:{}".format(mean.shape), verbose=verbose)
         return omega_val
+
+
+class Weight_Activations_Computer(Relevance_Computer):
+    def __init__(self, model, fx_modulate=np.abs,
+                 layer_start=None,
+                 agg_data_points=True,
+                 local=False,
+                 verbose=False):
+        super().__init__(model, fx_modulate, layer_start, agg_data_points, local, verbose)
+
+    def __call__(self, data):
+        return self.compute_weight_activations(data)
+
+    def compute_weight_activations(self,data):
+        model, fx_modulate, layer_start, agg_data_points, local, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.local, self.verbose
+
+        omega_val = {}
+        for l in model.layers:
+
+            # skips layers w/o weights
+            # e.g. input/pooling
+            if l.weights == []:
+                omega_val[l] = np.array([])
+
+                continue
+
+            # 1. compute values
+
+            # 1.1 compute activations
+            model_k = tf.keras.Model(inputs=model.inputs, outputs=[l.input])
+            score_val_a = model_k.predict(data)
+
+            score_val_a = fx_modulate(score_val_a)
+
+            # 1.2 compute
+
+            score_val_w = l.weights[0][:]
+            score_val_w = fx_modulate(score_val_w)
+
+            # 2 aggragate across locations
+
+            # 2.1 Aggregate Across Activations
+            # 2.1.1 aggregate across 4D
+            if len(score_val_a.shape) > 3:
+                score_val_a = np.mean(score_val_a, axis=(1, 2))
+                vprint("\t 4D shape:{}".format(score_val_a.shape), verbose=verbose)
+            # 2.1.2 aggregate across 3D(1D-input)
+            elif len(score_val_a.shape) > 2:
+                score_val_a = np.mean(score_val_a, axis=(1))
+                vprint("\t 3D shape:{}".format(score_val_a.shape), verbose=verbose)
+
+            # 2.2.1 aggragate across locations (WEIGHTS)
+            if len(score_val_w.shape) > 3:
+                vprint("\tshape:{}", verbose=verbose)
+                vprint("\tscore_val.shape:{}".format(score_val_w.shape), verbose=verbose)
+                score_val_w = np.mean(score_val_w, axis=(0, 1))
+            elif len(score_val_w.shape) > 2:
+                score_val_w = np.mean(score_val_w, axis=(0))
+
+            # 3. aggregate across datapoints
+            score_agg_a = np.mean(score_val_a, axis=0)
+
+            # ===redundant for weights
+            # 4. tokenize values
+            # ===redundant for activations
+            score_agg_w = np.mean(score_val_w, axis=-1)
+            omega_val[l] = score_agg_a * score_agg_w
+        return omega_val
+
 
 def __main__():
     tf.enable_eager_execution()

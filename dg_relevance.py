@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from matplotlib import pyplot as plt
+from utils import vprint
 
 # this should be only in the call module, all other modules should not have it!!!
 # best keep it in the main fx! 
@@ -67,12 +68,25 @@ def compute_weight(model, fx_modulate=lambda x: x, verbose=False, local=False):
 compute_weight_abs = lambda x: compute_weight(x, fx_modulate=np.abs)
 
 
+def compute_weights_gen(data, fx_modulate=lambda x: x, layer_start=None,
+                        agg_data_points=True,
+                        verbose=False):
+    '''
+
+    :param data:
+    :param fx_modulate:
+    :param layer_start:
+    :param agg_data_points: whehter to aggragate across data points
+    :param verbose:
+    :return: return all neuron importance for all layers starting from layer_start
+    '''
+    return lambda x: compute_weight(x, fx_modulate=fx_modulate)
+
+
 ### ACTIVATIONS
 
 ### ACTIVATIONS ALL! 
 # LOCAL computaion - rename!
-
-
 
 
 ### ACTIVATIONS Global
@@ -434,20 +448,40 @@ def select_random(relevance, threshold):
 
 def relevance_select_(omega_val, input_layer, select_fx_):
     relevant = {}
+
+    # TODO across non-aggragated data points
     for l, relevance in omega_val.items():
         if type(input_layer) is list and l in input_layer:
-            relevant[l] = range(len(relevance))
+            # non-aggragated data points
+            if relevance.shape[0] > 1:
+                relevant[l] = [range(relevance.shape[1]) for _ in range(relevance.shape[0])]
+            else:
+                relevant[l] = range(len(relevance))
         elif l == input_layer:
-            #             print(len(relevance),relevance)
-            relevant[l] = range(len(relevance))
-        # process layers without weights
+            # non-aggragated data points
+            if relevance.shape[0] > 1:
+                relevant[l] = [range(relevance.shape[1]) for _ in range(relevance.shape[0])]
+            else:
+                relevant[l] = range(len(relevance))
+                # process layers without weights
         elif l.weights == []:
-            relevant[l] = []
-        else:
+            # non-aggragated data points
+            if relevance.shape[0] > 1:
+                relevant[l] = [[] for _ in range(relevance.shape[0])]
+            else:
+                relevant[l] = []
 
-            idx = select_fx_(relevance)
-            relevant[l] = idx
+        else:
+            # non-aggragated data points
+            if relevance.shape[0] > 1:
+                relevant[l] = np.apply_along_axis(select_fx_, 0, relevance)
+            else:
+                relevant[l] = []
+                idx = select_fx_(relevance)
+                relevant[l] = idx
     return relevant
+
+
 
 
 # 3 functions below take
@@ -764,21 +798,6 @@ def relabel(DGs):
                         print(j, i, t_)
                         return
     return DG_relabelled
-
-
-def vprint(*args, verbose=False):
-    '''
-    verbose = True
-    args = 2,"abc","{}".format(2)2 abc 2
-    vprint(*args,verbose=True)
-    print(*args)
-    print(2,"abc","{}".format(2))
-    vprint(*args,verbose=0)
-    '''
-    # TODO fix bug when verbose is arg,not kwarg
-    # eg. vprint(*args,verbose)
-    if verbose:
-        print(*args[:])
 
 
 ##########COMPUTE UTILS##########
