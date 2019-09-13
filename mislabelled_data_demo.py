@@ -1,12 +1,11 @@
 if __name__ == '__main__':
     import tensorflow as tf
     tf.enable_eager_execution()
-from mnist_loader import load_mnist, build_sample_model
-import numpy as np
-from dataset_utils import filter_dataset
 from aggregator_utils import get_count_aggregators, uncertainty_pred, compute_dg
 from core import *
-import os
+from dataset_utils import filter_dataset
+from mnist_loader import load_mnist, get_mnist_model
+
 """
 Things to try:
     - Dependency graph computation approach (dg_relevance)
@@ -27,16 +26,7 @@ def main():
     test_x, test_y = filter_dataset((test_x, test_y), selected_classes)
 
     # Create model
-    input_shape = train_x.shape[1:]
-    model = build_sample_model(input_shape)
-
-    model_save_path = "./mnist_model.h5"
-    if not os.path.exists(model_save_path):
-        # Train model
-        model.fit(x=train_x, y=train_y, epochs=2)
-        model.save_weights(model_save_path)
-    else:
-        model.load_weights(model_save_path)
+    model = get_mnist_model(train_x, train_y)
 
     # Obtain subset of incorrectly labelled training points
     preds = np.argmax(model.predict(train_x), axis=1)
@@ -104,6 +94,7 @@ def main():
     print("Mislabelled: ", mislabelled)
 
     return sorted_keys
+
 
 if __name__ == '__main__':
     main()

@@ -1,3 +1,7 @@
+if __name__ == '__main__':
+    import tensorflow as tf
+    tf.enable_eager_execution()
+    from loadData import *
 import numpy as np
 from dataset_utils import filter_dataset
 from dg_aggregators.CountAggregator import CountAggregator
@@ -64,6 +68,15 @@ def get_count_aggregators(X_train, y_train, model, n_samples, mode="per_class"):
     return fx_eval(X_train, y_train, model, n_samples)
 
 
+def get_aggregators_from_collection(dg_collection_list, abstractAggregator=CountAggregator):
+    aggregators = {}
+    for cls in range(len(dg_collection_list)):
+        dg_collection = dg_collection_list[cls]
+        aggregator = CountAggregator(dg_collection, cls)
+        aggregators[cls] = aggregator
+    return aggregators
+
+
 def get_count_aggregators_batch(X_train, y_train, model, n_samples):
     aggregators = {}
 
@@ -128,6 +141,13 @@ def get_count_aggregators_per_class(X_train, y_train, model, n_samples):
 
 
 def compute_dg_per_datapoint(X_train, model, RelevanceComputer):
+    '''
+
+    :param X_train: data_set
+    :param model: model
+    :param RelevanceComputer:
+    :return:
+    '''
     compute_fx = RelevanceComputer(model=model, agg_data_points=False)
     relevances = compute_fx(X_train)
     dgs = relevance_select(relevances, input_layer=compute_fx.model.layers[0], threshold=0.20)
@@ -142,7 +162,23 @@ def extract_dgs_by_ids(dgs, idx):
     :return:
     '''
     dg_idx = {}
+
     for l, relevance in dgs.items():
         values_idx = relevance[idx, :]
+        # flatten relevances from shape [1,n] to [n,] if only one DG is requested
+        # alternative we can convert idx from list to scalar idx =[i] => idx = i
+        if len(idx) == 1:
+            values_idx = values_idx.flatten()
         dg_idx[l] = values_idx
     return dg_idx
+
+def get_number_datapoints(dg_collection):
+    val = next(iter(dg_collection.values()))
+    return val.shape[0]
+
+def test_get_aggregators_from_collection():
+    pass
+
+
+if __name__ == '__main__':
+    test_get_aggregators_from_collection()

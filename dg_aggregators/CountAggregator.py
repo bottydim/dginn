@@ -23,7 +23,7 @@ class CountAggregator(AbstractAggregator):
         # source: https://stackoverflow.com/questions/2600790/multiple-levels-of-collection-defaultdict-in-python
         self.node_counts = defaultdict(lambda: defaultdict(int))
         self.n_graphs = 0
-
+        self.total_neurons = 0
         # the challenge with the current implementation of Dependency graphs is that they use
         # keras layer as key to the dict map
         # if we create layers * neurons instances of keras layer to index node_counts
@@ -43,7 +43,7 @@ class CountAggregator(AbstractAggregator):
             neurons, counts = np.unique(relevance_matrix, return_counts=True)
             for n, c in zip(neurons, counts):
                 self.node_counts[l][n] += c
-
+                self.total_neurons += c
         # get the value, turn them into iterator to get the first one & access the datapoint dimension
         self.n_graphs = next(iter(dgs_collection.values())).shape[0]
 
@@ -84,7 +84,7 @@ class CountAggregator(AbstractAggregator):
                 sim_score += self.node_counts[l][node]
                 node_count += 1
 
-        sim_score /= self.n_graphs
+        sim_score /= self.total_neurons
 
         return sim_score
 
