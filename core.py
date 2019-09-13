@@ -18,7 +18,7 @@ sess = tf.Session(config=config)
 
 class Relevance_Computer(ABC):
     '''
-    A class that hold the different strategies used to compute Step I.
+    Abstract class that holds the different strategies used to compute Step I.
     '''
 
     def __init__(self, model, fx_modulate=lambda x: x,

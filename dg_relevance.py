@@ -476,6 +476,8 @@ def relevance_select_(omega_val, input_layer, select_fx_):
         else:
             # non-aggragated data points
             if relevance.shape[0] > 1:
+                # returns an array with the same number of neuron id for each dg
+                # the array contains the neuron ids that were selected as relevant
                 relevant[l] = np.apply_along_axis(select_fx_, 1, relevance)
             else:
                 relevant[l] = []
