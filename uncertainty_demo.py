@@ -4,6 +4,8 @@ if __name__ == '__main__':
     import tensorflow as tf
 
     tf.enable_eager_execution()
+
+from collections import defaultdict
 from mnist_loader import load_mnist, get_mnist_model
 from dataset_utils import filter_dataset
 from data_visualizers import visualize_samples
@@ -15,24 +17,19 @@ def compare_points(x, aggregators):
     raise NotImplementedError()
 
 
-def sort_uncertain_points(query_x, train_x, train_y, model, n_samples=100):
+def sort_uncertain_points(query_x, model, aggregators):
     '''
 
+    :param aggregators:
     :param query_x: samples to compare
-    :param train_x:
-    :param train_y:
     :param model:
-    :param n_samples:
     :return:
     '''
 
     # Run samples through model to get predicted labels
     predictions = np.argmax(model.predict(query_x), axis=1)
 
-    # Create aggregators from the training samples
-    aggregators = get_count_aggregators(train_x, train_y, model, n_samples)
-
-    similarities = {}
+    similarities = defaultdict(int)
     dg_collection_query = compute_dg_per_datapoint(query_x, model, Activations_Computer)
     for i, x_sample in enumerate(query_x):
         # print("Iteration ", i)
@@ -55,10 +52,12 @@ def sort_uncertain_points(query_x, train_x, train_y, model, n_samples=100):
     similarity_list = [similarities.get(key) for key in sorted_keys]
     # Visualise samples
     # Extract least similar 40 points
-    visualize_samples(sorted_vals[:40], similarity_list[:40], title="Most Similar to Original Class")
+    fig_most = visualize_samples(sorted_vals[:40], similarity_list[:40], title="Most Similar to Original Class")
     # Idea: samples with lower similarity will seem stranger
-    visualize_samples(sorted_vals[::-1][:40], similarity_list[::-1][:40], title="Least Similar to Original Class")
-    plt.show()
+    fig_least = visualize_samples(sorted_vals[::-1][:40], similarity_list[::-1][:40],
+                                  title="Least Similar to Original Class")
+    plt.show(block=False)
+    return fig_most, fig_least
 
 
 def random_points():
@@ -83,13 +82,17 @@ def random_points():
     model = get_mnist_model(train_x, train_y)
 
     # Select points to inspect
-    selected_points = test_x[:100]
+    n_samples = 100
+    selected_points = test_x[:n_samples]
+
+    # Create aggregators from the training samples
+    aggregators = get_count_aggregators(train_x, train_y, model, n_samples)
 
     # Visualise points, sorted by their uncertainty
-    sort_uncertain_points(selected_points, train_x, train_y, model, n_samples=100)
+    sort_uncertain_points(selected_points, model, aggregators)
 
 
-def same_class_points(cls, n_samples=1000):
+def same_class_points(cls_list, n_samples=1000):
     """
         Script demonstrating uncertainty functionality offered by dep. graphs.
 
@@ -100,25 +103,30 @@ def same_class_points(cls, n_samples=1000):
 
     # Load dataset
     train_x, train_y, test_x, test_y = load_mnist()
-
-    # Filter out subset of classes
-    selected_classes = [cls]
-    train_x, train_y = filter_dataset((train_x, train_y), selected_classes)
-    test_x, test_y = filter_dataset((test_x, test_y), selected_classes)
-
-    # Create model
     # Create model
     model = get_mnist_model(train_x, train_y)
+    # Create aggregators from the training samples
+    aggregators = get_count_aggregators(train_x, train_y, model, n_samples)
 
-    # Select points to inspect
-    idx = np.where(test_y == cls)
-    selected_points = test_x[idx][:100]
+    for cls in cls_list:
+        # Filter out subset of classes
+        selected_classes = [cls]
+        # sub_train_x, train_y = filter_dataset((train_x, train_y), selected_classes)
+        sub_test_x, sub_test_y = filter_dataset((test_x, test_y), selected_classes)
 
-    # Visualise points, sorted by their uncertainty
-    sort_uncertain_points(selected_points, train_x, train_y, model, n_samples=1000)
+        # Select points to inspect
+        idx = np.where(sub_test_y == cls)
+        selected_points = sub_test_x[idx][:n_samples]
+
+        # Visualise points, sorted by their uncertainty
+        fig_most, fig_least = sort_uncertain_points(selected_points, model, aggregators)
+        fig_most
+        plt.savefig("../../../figures/mnist_{}_most.png".format(cls))
+        fig_least
+        plt.savefig("../../../figures/mnist_{}_least.png".format(cls))
 
 
-def informetis():
+def informetis(cls=0):
     cls_datasets, model = load_informetis()
 
     from aggregator_utils import compute_dg_per_datapoint
@@ -132,7 +140,6 @@ def informetis():
 
     from dginn.aggregator_utils import get_aggregators_from_collection, get_number_datapoints
 
-    cls = 0
     aggregators = get_aggregators_from_collection(dg_collection_list)
     dg_collection_query = dg_collection_list[cls]
     similarities = {}
@@ -151,9 +158,37 @@ def informetis():
     visualize_samples_informetis(samples, similarities, title="Most Similar")
 
 
+def informetis_prototypical(dataset, dg_collection_query, aggregator):
+    from dginn.aggregator_utils import get_aggregators_from_collection, get_number_datapoints, extract_dgs_by_ids
+
+    similarities = {}
+    num_datapoints = get_number_datapoints(dg_collection_query)
+
+    for i in range(num_datapoints):
+        dg_query = extract_dgs_by_ids(dg_collection_query, [i])
+
+        # Compute similarity of the test point to the sampled points
+        similarities[i] = aggregator.similarity(dg_query)
+
+    # Sort points by their similarity
+    sorted_keys = sorted(similarities, key=similarities.get, reverse=True)
+
+    from data_visualizers import visualize_samples_informetis
+    samples = dataset["aggPower"][sorted_keys]
+    similarity_list = [similarities.get(key) for key in sorted_keys]
+
+    similarity_list = [similarities.get(key) for key in sorted_keys]
+    lim_samples = 10
+    visualize_samples_informetis(samples[:lim_samples, ...], similarity_list[:lim_samples], figsize=(20, 15))
+
+    samples_rev = samples[::-1]
+    visualize_samples_informetis(samples_rev[:lim_samples, ...], similarity_list[::-1][:lim_samples])
+    return samples, similarity_list
+
+
 def main():
-    # same_class_points(1)
-    informetis()
+    same_class_points(list(range(10)), n_samples=1000)
+    # informetis()
 
 
 if __name__ == '__main__':

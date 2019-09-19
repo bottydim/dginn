@@ -106,4 +106,5 @@ Observations:
     2) Mislabelled samples have higher certainty than misclassified ones (though difference is not pronounced enough)
     3) Sometimes, uncertainty gives correct estimate, whilst the model does not    
 
+
 """

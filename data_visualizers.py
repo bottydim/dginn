@@ -19,6 +19,7 @@ def visualize_samples(samples, similaries, title="", ):
         ax.set_title("{}-sim-{}".format(i, round(similaries[i - 1], 3)))
         plt.tight_layout()
     fig.suptitle(title)
+    return fig
 
 
 def visualize_samples_informetis(samples, similaries, title="",figsize=(15, 15)):
@@ -38,4 +39,4 @@ def visualize_samples_informetis(samples, similaries, title="",figsize=(15, 15))
         ax.set_yticks([])
         plt.tight_layout()
     fig.suptitle(title)
-    plt.show()
+    plt.show(block=False)
