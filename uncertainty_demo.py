@@ -1,4 +1,4 @@
-from loadData import load_informetis
+from informetis_demo import informetis
 
 if __name__ == '__main__':
     import tensorflow as tf
@@ -9,15 +9,19 @@ from collections import defaultdict
 from mnist_loader import load_mnist, get_mnist_model
 from dataset_utils import filter_dataset
 from data_visualizers import visualize_samples
-from aggregator_utils import get_count_aggregators, compute_dg_per_datapoint, extract_dgs_by_ids
+from aggregator_utils import get_count_aggregators, extract_dgs_by_ids
 from core import *
+import os
+import dill as pickle
+from aggregator_utils import compute_dg_per_datapoint
+from dginn.core import Activations_Computer
 
 
 def compare_points(x, aggregators):
     raise NotImplementedError()
 
 
-def sort_uncertain_points(query_x, model, aggregators):
+def sort_uncertain_points(query_x, model, aggregators, show=False):
     '''
 
     :param aggregators:
@@ -56,7 +60,8 @@ def sort_uncertain_points(query_x, model, aggregators):
     # Idea: samples with lower similarity will seem stranger
     fig_least = visualize_samples(sorted_vals[::-1][:40], similarity_list[::-1][:40],
                                   title="Least Similar to Original Class")
-    plt.show(block=False)
+    if show:
+        plt.show(block=False)
     return fig_most, fig_least
 
 
@@ -120,76 +125,23 @@ def same_class_points(cls_list, n_samples=1000):
 
         # Visualise points, sorted by their uncertainty
         fig_most, fig_least = sort_uncertain_points(selected_points, model, aggregators)
-        fig_most
-        plt.savefig("../../../figures/mnist_{}_most.png".format(cls))
-        fig_least
-        plt.savefig("../../../figures/mnist_{}_least.png".format(cls))
+
+        save_fig(cls, fig_most, "most", "mnist")
+        save_fig(cls, fig_least, "least", "mnist")
 
 
-def informetis(cls=0):
-    cls_datasets, model = load_informetis()
-
-    from aggregator_utils import compute_dg_per_datapoint
-    from dginn.core import Activations_Computer
-    # dist lists
-    dg_collection_list = []
-    for i in range(len(cls_datasets)):
-        print("Dataset #{}".format(i))
-        dg_collection = compute_dg_per_datapoint(cls_datasets[i], model, Activations_Computer)
-        dg_collection_list.append(dg_collection)
-
-    from dginn.aggregator_utils import get_aggregators_from_collection, get_number_datapoints
-
-    aggregators = get_aggregators_from_collection(dg_collection_list)
-    dg_collection_query = dg_collection_list[cls]
-    similarities = {}
-    num_datapoints = get_number_datapoints(dg_collection_query)
-    for i in range(num_datapoints):
-        dg_query = extract_dgs_by_ids(dg_collection_query, [i])
-
-        # Compute similarity of the test point to the sampled points
-        similarities[i] = aggregators[cls].similarity(dg_query)
-
-    # Sort points by their similarity
-    sorted_keys = sorted(similarities, key=similarities.get, reverse=True)
-
-    from data_visualizers import visualize_samples_informetis
-    samples = cls_datasets[cls]["aggPower"][sorted_keys]
-    visualize_samples_informetis(samples, similarities, title="Most Similar")
-
-
-def informetis_prototypical(dataset, dg_collection_query, aggregator):
-    from dginn.aggregator_utils import get_aggregators_from_collection, get_number_datapoints, extract_dgs_by_ids
-
-    similarities = {}
-    num_datapoints = get_number_datapoints(dg_collection_query)
-
-    for i in range(num_datapoints):
-        dg_query = extract_dgs_by_ids(dg_collection_query, [i])
-
-        # Compute similarity of the test point to the sampled points
-        similarities[i] = aggregator.similarity(dg_query)
-
-    # Sort points by their similarity
-    sorted_keys = sorted(similarities, key=similarities.get, reverse=True)
-
-    from data_visualizers import visualize_samples_informetis
-    samples = dataset["aggPower"][sorted_keys]
-    similarity_list = [similarities.get(key) for key in sorted_keys]
-
-    similarity_list = [similarities.get(key) for key in sorted_keys]
-    lim_samples = 10
-    visualize_samples_informetis(samples[:lim_samples, ...], similarity_list[:lim_samples], figsize=(20, 15))
-
-    samples_rev = samples[::-1]
-    visualize_samples_informetis(samples_rev[:lim_samples, ...], similarity_list[::-1][:lim_samples])
-    return samples, similarity_list
+def save_fig(cls, fig, identifier, dataset):
+    plt.figure(fig.number)
+    plt.savefig(os.path.join(FIG_FOLDER, "{}/{}_{}.png".format(dataset, cls, identifier)))
+    with open(os.path.join(FIG_FOLDER, "{}/{}_{}.fig".format(dataset, cls, identifier)), "wb+") as f:
+        pickle.dump(fig, f)
 
 
 def main():
-    same_class_points(list(range(10)), n_samples=1000)
-    # informetis()
+    # same_class_points(list(range(10)), n_samples=1000)
+    informetis(n_samples=10)
 
 
 if __name__ == '__main__':
     main()
+    # print(os.listdir(os.path.abspath("../")))
