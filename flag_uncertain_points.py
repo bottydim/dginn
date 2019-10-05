@@ -1,14 +1,18 @@
-import numpy as np
-from mnist_loader import load_mnist,build_sample_model
+if __name__ == '__main__':
+    import tensorflow as tf
 
-from dataset_utils import filter_dataset
-from data_visualizers import visualize_samples
-from aggregator_utils import get_count_aggregators, compute_dg_per_datapoint,extract_dgs_by_ids
-from dg_aggregators.CountAggregator import CountAggregator
-from core import Activations_Computer
+    tf.enable_eager_execution()
+
+import os
 from collections import defaultdict
-import matplotlib.pyplot as plt
 
+from aggregator_utils import compute_dg_per_datapoint
+from aggregator_utils import get_count_aggregators, extract_dgs_by_ids
+from core import *
+from core import Activations_Computer
+from data_visualizers import visualize_samples
+from dataset_utils import filter_dataset
+from mnist_loader import load_mnist, get_mnist_model
 
 def main():
 
@@ -16,8 +20,8 @@ def main():
     train_x, train_y, test_x, test_y = load_mnist()
 
     # Define biased and unbiased classes
-    unbiased_classes = [3,4,5]
-    biased_class = [2]
+    unbiased_classes = [0, 2, 3]
+    biased_class = [1]
     all_classes = biased_class + unbiased_classes
     test_x, test_y = filter_dataset((test_x, test_y), all_classes)
 
@@ -37,21 +41,20 @@ def main():
     train_x, train_y = train_x[indices], train_y[indices]
 
     # Group 4 digits into 2 classes
-    train_y = train_y // 4
-    test_y = test_y // 4
+    train_y = train_y // 2
+    test_y = test_y // 2
 
     # Create model
-    input_shape = train_x.shape[1:]
-    model = build_sample_model(input_shape, len(all_classes))
 
-    # Train model
-    model.fit(x=train_x, y=train_y, epochs=1)
+    model = get_mnist_model(train_x, train_y, 2)
 
-
-    biased_point_idx = biased_points[10]
+    biased_point_idx = biased_points[40:41]
     biased_point = test_x[biased_point_idx]
 
-    biased_point_comparison(biased_point, biased_x, model)
+
+    train_x_0, train_y_0 = filter_dataset((train_x, train_y), 0)
+    biased_point_comparison(biased_point,train_x_0,model)
+
 
 
 def biased_point_comparison(biased_point, biased_x, model):
@@ -74,7 +77,7 @@ def biased_point_comparison(biased_point, biased_x, model):
         similarities[i] = aggregator.similarity(dg_query)
     # Sort points by their similarity
     sorted_keys = sorted(similarities, key=similarities.get, reverse=True)
-    sorted_vals = [biased_point[i] for i in sorted_keys]
+    sorted_vals = [biased_x[i] for i in sorted_keys]
     similarity_list = [similarities.get(key) for key in sorted_keys]
     # Visualise samples
     # Extract least similar 40 points
@@ -84,3 +87,18 @@ def biased_point_comparison(biased_point, biased_x, model):
     fig_least = visualize_samples(sorted_vals[::-1][:40], similarity_list[::-1][:40],
                                   title="Least Similar to Original Class")
     plt.show(block=False)
+
+if __name__ == '__main__':
+
+    main()
+
+'''
+Dynamic threshold computation:
+    - Compute class dg
+    - Compute sims of all training points
+    - Compute their distribution
+    - Compute outliers
+    - Set as threshold
+
+
+'''
