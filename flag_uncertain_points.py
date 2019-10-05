@@ -1,5 +1,5 @@
 import numpy as np
-from mnist_loader import load_mnist, build_mnist_model
+from mnist_loader import load_mnist, get_mnist_model
 
 from dataset_utils import filter_dataset
 from data_visualizers import visualize_samples
@@ -42,7 +42,7 @@ def main():
 
     # Create model
     input_shape = train_x.shape[1:]
-    model = build_mnist_model(input_shape, len(all_classes))
+    model = get_mnist_model(input_shape, len(all_classes))
 
     # Train model
     model.fit(x=train_x, y=train_y, epochs=1)
