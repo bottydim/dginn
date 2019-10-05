@@ -1,20 +1,20 @@
-from informetis_demo import informetis
-
 if __name__ == '__main__':
     import tensorflow as tf
 
     tf.enable_eager_execution()
 
+import os
 from collections import defaultdict
-from mnist_loader import load_mnist, get_mnist_model
-from dataset_utils import filter_dataset
-from data_visualizers import visualize_samples
+
+import dill as pickle
+
+from aggregator_utils import compute_dg_per_datapoint
 from aggregator_utils import get_count_aggregators, extract_dgs_by_ids
 from core import *
-import os
-import dill as pickle
-from aggregator_utils import compute_dg_per_datapoint
-from dginn.core import Activations_Computer
+from core import Activations_Computer
+from data_visualizers import visualize_samples
+from dataset_utils import filter_dataset
+from mnist_loader import load_mnist, get_mnist_model
 
 
 def compare_points(x, aggregators):
@@ -138,8 +138,8 @@ def save_fig(cls, fig, identifier, dataset):
 
 
 def main():
-    # same_class_points(list(range(10)), n_samples=1000)
-    informetis(n_samples=10)
+    same_class_points(list(range(10)), n_samples=10)
+    # informetis(n_samples=10)
 
 
 if __name__ == '__main__':
