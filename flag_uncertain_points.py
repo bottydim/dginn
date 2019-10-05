@@ -56,7 +56,7 @@ def main():
     biased_point = test_x[biased_point_idx]
 
 
-    train_x_0, train_y_0 = filter_dataset((train_x, train_y), 0)
+    train_x_0, train_y_0 = filter_dataset((train_x, train_y), [0])
 
     print("")
 
