@@ -39,15 +39,13 @@ def main():
     n_biased_samples = int(biased_x.shape[0] * 0.2)
     biased_x, biased_y = biased_x[:n_biased_samples], biased_y[:n_biased_samples]
     train_x, train_y = np.concatenate((unbiased_x, biased_x)),  np.concatenate((unbiased_y, biased_y))
-    
+
     # Select random set of samples
     n_samples = 800
     indices = np.random.choice(train_x.shape[0], n_samples, replace=False)
     train_x, train_y = train_x[indices], train_y[indices]
 
     # Group 4 digits into 2 classes
-    train_y = train_y // 4
-    test_y = test_y // 4
     train_y = train_y // 2
     test_y = test_y // 2
 
