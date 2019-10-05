@@ -1,13 +1,13 @@
 import numpy as np
-from mnist_loader import load_mnist, build_mnist_model
+from mnist_loader import load_mnist,build_sample_model
 
 from dataset_utils import filter_dataset
 from data_visualizers import visualize_samples
-from aggregator_utils import get_count_aggregators, compute_dg
+from aggregator_utils import get_count_aggregators, compute_dg_per_datapoint,extract_dgs_by_ids
 from dg_aggregators.CountAggregator import CountAggregator
-
-
-
+from core import Activations_Computer
+from collections import defaultdict
+import matplotlib.pyplot as plt
 
 
 def main():
@@ -42,7 +42,7 @@ def main():
 
     # Create model
     input_shape = train_x.shape[1:]
-    model = build_mnist_model(input_shape, len(all_classes))
+    model = build_sample_model(input_shape, len(all_classes))
 
     # Train model
     model.fit(x=train_x, y=train_y, epochs=1)
@@ -50,3 +50,37 @@ def main():
 
     biased_point_idx = biased_points[10]
     biased_point = test_x[biased_point_idx]
+
+    biased_point_comparison(biased_point, biased_x, model)
+
+
+def biased_point_comparison(biased_point, biased_x, model):
+    similarities = defaultdict(int)
+    # expand dims
+    # n_biased = biased_points.shape[0]
+    biased_point = np.expand_dims(biased_point, axis=0)
+    aggregator = get_count_aggregators(biased_point, np.zeros((1,1)), model, n_samples=1)[0]
+    dg_collection_query = compute_dg_per_datapoint(biased_x, model, Activations_Computer)
+    for i, x_sample in enumerate(biased_x):
+        # print("Iteration ", i)
+
+        # Compute dep. graph of new sample
+        x_sample = np.expand_dims(x_sample, axis=0)
+        indices = [i]
+        dg_query = extract_dgs_by_ids(dg_collection_query, indices)
+
+
+        # Compute similarity of the test point to the sampled points
+        similarities[i] = aggregator.similarity(dg_query)
+    # Sort points by their similarity
+    sorted_keys = sorted(similarities, key=similarities.get, reverse=True)
+    sorted_vals = [biased_point[i] for i in sorted_keys]
+    similarity_list = [similarities.get(key) for key in sorted_keys]
+    # Visualise samples
+    # Extract least similar 40 points
+    fig_most = visualize_samples(sorted_vals[:40], similarity_list[:40], title="Most Similar to Original Class")
+    plt.show(block=False)
+    # Idea: samples with lower similarity will seem stranger
+    fig_least = visualize_samples(sorted_vals[::-1][:40], similarity_list[::-1][:40],
+                                  title="Least Similar to Original Class")
+    plt.show(block=False)
