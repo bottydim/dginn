@@ -959,6 +959,24 @@ def view_input_layers(relevances, input_layers):
         print(l.name, relevances[l])
 
 
+def view_layer_importance(relevances_a, model, ax=None, logy=True, summary_fx=np.mean):
+    '''
+    return: the importance of the input layers
+    e.g.
+    aggPower [33.246933]
+    aggDiffWave [0.05136125]
+    aggNoMinWave [0.23131992]
+    '''
+    layer_importance = []
+    for l in model.layers:
+        layer_importance.append(summary_fx(relevances_a[l]))
+
+    layer_names = [l.name for l in model.layers]
+    df = pd.DataFrame(zip(layer_importance, layer_names))
+    df = df.set_index(df[1])
+    ax = df[0].plot(kind="bar", logy=logy, ax=ax)
+
+
 def visualise_kernel_dependence(importance_kernels_1, sharey=False, log=False):
     n_rows = 10
     n_cols = int(int(importance_kernels_1.shape[-1]) / n_rows)
@@ -971,7 +989,7 @@ def visualise_kernel_dependence(importance_kernels_1, sharey=False, log=False):
             axes[i, j].set_title("Kernel #:{}".format(idx))
 
 
-def layer_importance_strategies(relevance_strategies, relevance_names, logy=False, sharey=False):
+def layer_importance_strategies(model,relevance_strategies, relevance_names, logy=False, sharey=False):
     """
     relevance_strategies: a list of 
     """

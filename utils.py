@@ -51,3 +51,7 @@ class Timer:
         h, m = divmod(m, 60)
         time_str = "%02d:%02d:%02d" % (h, m, s)
         return time_str
+
+
+# TODO extract in config.inin
+FIG_FOLDER = "/home/botty/Documents/figures"

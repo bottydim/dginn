@@ -22,7 +22,7 @@ def visualize_samples(samples, similaries, title="", ):
     return fig
 
 
-def visualize_samples_informetis(samples, similaries, title="",figsize=(15, 15)):
+def visualize_samples_informetis(samples, similaries, title="", figsize=(15, 15), show=True):
     from loadData import visualise_sample as visualise_time_series
     cols = 4
     rows = math.ceil(len(samples) / cols)
@@ -39,4 +39,6 @@ def visualize_samples_informetis(samples, similaries, title="",figsize=(15, 15))
         ax.set_yticks([])
         plt.tight_layout()
     fig.suptitle(title)
-    plt.show(block=False)
+    if show:
+        plt.show(block=False)
+    return fig
