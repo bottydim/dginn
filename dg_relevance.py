@@ -5,6 +5,7 @@ if __name__ == '__main__':
     tf.enable_eager_execution()
 from matplotlib import pyplot as plt
 from utils import vprint, Timer
+import math
 
 # this should be only in the call module, all other modules should not have it!!!
 # best keep it in the main fx! 
@@ -438,9 +439,9 @@ def compute_dependency_weight(model, fx_modulate=lambda x: x):
 
 # functions, which handle the neuron relevance selection
 def percentage_threshold(relevance, t):
-    r = relevance
+    r = np.ravel(relevance)
     # sort args based on val, reverse, take %
-    return list(reversed(np.argsort(r)))[:int(len(r) * t)]
+    return list(reversed(np.argsort(r)))[:math.ceil(len(r) * t)]
 
 
 def select_random(relevance, threshold):

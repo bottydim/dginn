@@ -149,7 +149,7 @@ def compute_dg_per_datapoint(X_train, model, RelevanceComputer):
     '''
     compute_fx = RelevanceComputer(model=model, agg_data_points=False)
     relevances = compute_fx(X_train)
-    dgs = relevance_select(relevances, input_layer=compute_fx.model.layers[0], threshold=0.20)
+    dgs = relevance_select(relevances, input_layer=compute_fx.model.layers[0], threshold=0.05)
     return dgs
 
 
