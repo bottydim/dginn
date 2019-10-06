@@ -2,46 +2,18 @@ if __name__ == '__main__':
     import tensorflow as tf
     tf.enable_eager_execution()
 
-import numpy as np
-from dataset_utils import filter_dataset
-from data_visualizers import visualize_samples
 from aggregator_utils import compute_dg_per_datapoint, extract_dgs_by_ids
 from mnist_loader import load_mnist, get_mnist_model
 from core import *
 from core import Activations_Computer
 from dg_relevance import cf_dgs
 from dg_clustering import dendrogram_clustering
-
+from data_loaders import load_biased_mnist_dataset
 
 def main():
 
-    # Load dataset
-    train_x, train_y, test_x, test_y = load_mnist()
-
-    # Define biased and unbiased classes
-    unbiased_classes = [0, 1, 3]
-    biased_class = [2]
-    all_classes = biased_class + unbiased_classes
-    test_x, test_y = filter_dataset((test_x, test_y), all_classes)
-
-    # Retrieve indices of biased points
-    biased_points = np.where(test_y == biased_class[0])[0]
-
-    # Create dataset of unbiased classes, and class that is underrepresented
-    unbiased_x, unbiased_y = filter_dataset((train_x, train_y), unbiased_classes)
-    biased_x, biased_y = filter_dataset((train_x, train_y), biased_class)
-    n_biased_samples = int(biased_x.shape[0] * 0.2)
-    biased_x, biased_y = biased_x[:n_biased_samples], biased_y[:n_biased_samples]
-    train_x, train_y = np.concatenate((unbiased_x, biased_x)),  np.concatenate((unbiased_y, biased_y))
-
-    # Select random set of samples
-    n_samples = 100
-    indices = np.random.choice(train_x.shape[0], n_samples, replace=False)
-    train_x, train_y = train_x[indices], train_y[indices]
-
-    # Group 4 digits into 2 classes
-    train_y = train_y // 2
-    test_y = test_y // 2
+    # Load biased MNIST dataset
+    train_x, train_y, _, _ = load_biased_mnist_dataset()
 
     # Create model
     model = get_mnist_model(train_x, train_y, 2)
@@ -76,6 +48,10 @@ def main():
     dist_matrix = np.reciprocal(sim_matrix)
     for i in range(n_samples): dist_matrix[i, i] = 0
 
+    # Plot dendrogram
     dendrogram_clustering(dist_matrix, train_x)
+
+
+
 
 main()
