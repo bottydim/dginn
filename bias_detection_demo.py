@@ -4,6 +4,7 @@ if __name__ == '__main__':
 
 import numpy as np
 from dataset_utils import filter_dataset
+from data_visualizers import visualize_samples
 from aggregator_utils import compute_dg_per_datapoint, extract_dgs_by_ids
 from mnist_loader import load_mnist, get_mnist_model
 from core import *
@@ -75,9 +76,6 @@ def main():
     dist_matrix = np.reciprocal(sim_matrix)
     for i in range(n_samples): dist_matrix[i, i] = 0
 
-    dendrogram_clustering(dist_matrix, train_y)
-
-
-
+    dendrogram_clustering(dist_matrix, train_x)
 
 main()
