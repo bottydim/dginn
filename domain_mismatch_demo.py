@@ -3,7 +3,7 @@ if __name__ == '__main__':
     tf.enable_eager_execution()
 
 
-
+from data_loaders import randomly_sample
 from mnist_loader import load_mnist, get_mnist_model
 from aggregator_utils import compute_dg_per_datapoint
 from aggregator_utils import get_count_aggregators, extract_dgs_by_ids
@@ -25,7 +25,7 @@ def compute_domain_mismatch_threshold(train_x, cls_aggregator, model):
     '''
 
     # Compute dep. graphs for every training point
-    dg_collection_query = compute_dg_per_datapoint(train_x, model, Activations_Computer, n_layers=3)
+    dg_collection_query = compute_dg_per_datapoint(train_x, model, Activations_Computer, n_layers=4)
 
     # Compute similarity of all training points compared to cls_aggregator
     n_samples = train_x.shape[0]
@@ -42,8 +42,11 @@ def compute_domain_mismatch_threshold(train_x, cls_aggregator, model):
         # Compute similarity of point to class dep. graph
         similarities[i] = cls_aggregator.similarity(dg)
 
-    # Compute smallest similarity
-    min_sim = np.amin(similarities)
+    similarities = np.sort(similarities)
+    print(similarities)
+
+    # Compute 5th-percentile similarity
+    min_sim = np.percentile(similarities, 5)
 
     return min_sim
 
@@ -89,7 +92,7 @@ def check_domain(x, cls_aggregators, thresholds, model):
     y_pred = model(x)
 
     # Compute dep. graphs for all new points
-    dg_collection_query = compute_dg_per_datapoint(x, model, Activations_Computer, n_layers=3)
+    dg_collection_query = compute_dg_per_datapoint(x, model, Activations_Computer, n_layers=4)
 
     # For all points, check whether a point belongs to the same domain
     n_samples = x.shape[0]
@@ -107,6 +110,8 @@ def check_domain(x, cls_aggregators, thresholds, model):
         threshold = thresholds[pred_label]
 
         sim = cls_aggregator.similarity(dg)
+
+        print(sim)
 
         # Check if computed similarity is within the threshold bounds
         if sim < threshold:
@@ -140,19 +145,32 @@ def main():
     n_samples = 400
     aggregators = get_count_aggregators(train_x, train_y, model, n_samples)
 
+    # Compute domain thresholds for all classes
     domain_thresholds = compute_mismatch_thresholds(train_x, train_y, aggregators, model)
 
+    print("Thresholds: ", domain_thresholds)
+
+    # Select subsets of test datasets
+    test_x, test_y = randomly_sample(test_x, test_y, 400)
+    diff_domain_x, diff_domain_y = randomly_sample(diff_domain_x, diff_domain_y, 200)
+
     same_domain_predictions = check_domain(test_x, aggregators, domain_thresholds, model)
+
+    print("=====")
+    print("\n"*5)
+
     diff_domain_predictions = check_domain(diff_domain_x, aggregators, domain_thresholds, model)
 
     print("Predictions for points in the same domain: ")
-    print(same_domain_predictions)
+    same = sum(same_domain_predictions)/len(same_domain_predictions) * 100
+    print(100 - same)
 
     print("\n" * 3)
     print("="*10)
 
     print("Predictions for different domain: ")
-    print(diff_domain_predictions)
+    diff = sum(diff_domain_predictions)/len(diff_domain_predictions) * 100
+    print(100 - diff)
 
     # TODO: visualise flagged 1s and unflagged 2s
     # Expect to see: weird 2s that look like 0/1, and weird 1s that don't look ordinary
