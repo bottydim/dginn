@@ -75,6 +75,49 @@ def compute_mismatch_thresholds(train_x, train_y, cls_aggregators, model):
     return sim_thresholds
 
 
+def check_domain(x, cls_aggregators, thresholds, model):
+    '''
+    Check whether or not points in x belong to the domain of model
+    :param x: new data points
+    :param cls_aggregators: dep. graph aggregators of training data for model
+    :param thresholds: similarity thresholds used to determine whether points belong to domain
+    :param model: model
+    :return: list of length x.shape[0], indicating whether points in x belong to the original domain
+    '''
+
+    # Compute predicted labels of new points
+    y_pred = model(x)
+
+    # Compute dep. graphs for all new points
+    dg_collection_query = compute_dg_per_datapoint(x, model, Activations_Computer)
+
+    # For all points, check whether a point belongs to the same domain
+    n_samples = x.shape[0]
+    same_domain = []
+
+    for i in range(n_samples):
+
+        # Extract dep. graph of next point
+        indices = [i]
+        dg = extract_dgs_by_ids(dg_collection_query, indices)
+
+        # Compute similarity to relevant aggregator
+        pred_label = np.argmax(y_pred[i])
+        cls_aggregator = cls_aggregators[pred_label]
+        threshold = thresholds[pred_label]
+
+        sim = cls_aggregator.similarity(dg)
+
+        # Check if computed similarity is within the threshold bounds
+        if sim < threshold:
+            same_domain.append(False)
+        else:
+            same_domain.append(True)
+
+    return same_domain
+
+
+
 
 def main():
 
@@ -99,23 +142,20 @@ def main():
 
     domain_thresholds = compute_mismatch_thresholds(train_x, train_y, aggregators, model)
 
+    same_domain_predictions = check_domain(test_x, aggregators, domain_thresholds, model)
+    diff_domain_predictions = check_domain(diff_domain_x, aggregators, domain_thresholds, model)
 
+    print("Predictions for points in the same domain: ")
+    print(same_domain_predictions)
 
-    # TODO: define "uncertain" function which (in a batch):
-        # takes point
-        # computes label
-        # computes dep. graph
-        # computes sim. of dep. graph to average of cls of dep. graph
-        # if sim < threshold for that class, flags that point
+    print("\n" * 3)
+    print("="*10)
 
-    # TODO: compute number of flagged points for 2s (want as much as possible)
-
-    # TODO: compute number of flagged points for 1s (want as little as possible)
+    print("Predictions for different domain: ")
+    print(diff_domain_predictions)
 
     # TODO: visualise flagged 1s and unflagged 2s
     # Expect to see: weird 2s that look like 0/1, and weird 1s that don't look ordinary
-
-    pass
 
 
 
