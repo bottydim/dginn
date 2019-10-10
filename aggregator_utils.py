@@ -140,7 +140,7 @@ def get_count_aggregators_per_class(X_train, y_train, model, n_samples):
     return aggregators
 
 
-def compute_dg_per_datapoint(X_train, model, RelevanceComputer):
+def compute_dg_per_datapoint(X_train, model, RelevanceComputer, n_layers=None):
     '''
 
     :param X_train: data_set
@@ -151,6 +151,13 @@ def compute_dg_per_datapoint(X_train, model, RelevanceComputer):
     compute_fx = RelevanceComputer(model=model, agg_data_points=False)
     relevances = compute_fx(X_train)
     dgs = relevance_select(relevances, input_layer=compute_fx.model.layers[0], threshold=0.05)
+
+    # TODO: this is a tmp fix. Will need to think what's the best place to put it in
+    # TODO: ideally, have early stopping in dg relevance
+    if n_layers is not None:
+        layer_subset = model.layers[-n_layers:]
+        dgs = {l: dgs[l] for l in layer_subset}
+
     return dgs
 
 

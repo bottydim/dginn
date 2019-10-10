@@ -25,7 +25,7 @@ def compute_domain_mismatch_threshold(train_x, cls_aggregator, model):
     '''
 
     # Compute dep. graphs for every training point
-    dg_collection_query = compute_dg_per_datapoint(train_x, model, Activations_Computer)
+    dg_collection_query = compute_dg_per_datapoint(train_x, model, Activations_Computer, n_layers=3)
 
     # Compute similarity of all training points compared to cls_aggregator
     n_samples = train_x.shape[0]
@@ -89,7 +89,7 @@ def check_domain(x, cls_aggregators, thresholds, model):
     y_pred = model(x)
 
     # Compute dep. graphs for all new points
-    dg_collection_query = compute_dg_per_datapoint(x, model, Activations_Computer)
+    dg_collection_query = compute_dg_per_datapoint(x, model, Activations_Computer, n_layers=3)
 
     # For all points, check whether a point belongs to the same domain
     n_samples = x.shape[0]
