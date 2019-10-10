@@ -114,6 +114,7 @@ def get_count_aggregators_batch(X_train, y_train, model, n_samples):
 def get_count_aggregators_per_class(X_train, y_train, model, n_samples):
     # Obtain all labels in the data
     all_classes = np.unique(y_train).tolist()
+    all_classes.sort()
 
     aggregators = {}
     compute_fx = Activations_Computer(model=model, agg_data_points=True)
