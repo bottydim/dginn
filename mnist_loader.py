@@ -61,7 +61,7 @@ def get_mnist_model(train_x, train_y, num_classes=10):
     path_dir = Path(os.path.dirname(os.path.abspath("__file__"))).parents[0]
     path_dir = path_dir / "dginn/temp_models"
     # TODO we want to think about the sitatuion where output is 2; yet it is trained on [0] vs [1] or [0,2] vs [1,7]
-    model_save_path = path_dir / "mnist_model_{}.h5".format(10)
+    model_save_path = path_dir / "mnist_model_{}.h5".format(num_classes)
     model_save_path = str(model_save_path)
     if not os.path.exists(model_save_path):
         # Train model

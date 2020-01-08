@@ -138,7 +138,7 @@ def save_fig(cls, fig, identifier, dataset):
 
 
 def main():
-    same_class_points(list(range(10)), n_samples=10)
+    same_class_points(list(range(10)), n_samples=1000)
     # informetis(n_samples=10)
 
 

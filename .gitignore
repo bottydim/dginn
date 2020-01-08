@@ -71,7 +71,7 @@ instance/
 # Scrapy stuff:
 .scrapy# Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[cod]
+*.py[cod]g
 *$py.class
 
 # C extensions
@@ -139,3 +139,6 @@ docs/_build/
 
 # Sphinx documentation
 docs/_build/
+
+#Figures
+figures/

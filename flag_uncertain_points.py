@@ -48,7 +48,7 @@ def main():
 
     model = get_mnist_model(train_x, train_y, 2)
 
-    biased_point_idx = biased_points[40:41]
+    biased_point_idx = biased_points[30:31]
     biased_point = test_x[biased_point_idx]
 
 
