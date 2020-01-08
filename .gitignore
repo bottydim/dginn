@@ -72,7 +72,7 @@ instance/
 .scrapy# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
-*$py.class
+*$py.classg
 
 # C extensions
 *.so
@@ -139,3 +139,9 @@ docs/_build/
 
 # Sphinx documentation
 docs/_build/
+
+#Figures
+figures/
+
+# PyCharm
+.idea/*

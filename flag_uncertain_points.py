@@ -47,6 +47,7 @@ def main():
     # Create model
     model = get_mnist_model(train_x, train_y, 2)
 
+    #### in case of crash try chaning to biased_points[30:31]
     biased_point_idx = biased_points[42]
     biased_point = test_x[biased_point_idx]
 
