@@ -11,7 +11,7 @@ def filter_dataset(dataset, classes):
 
     (points, labels) = dataset
 
-    mask = np.isin(labels, classes)
+    mask = np.squeeze(np.isin(labels, classes))
 
     filtered_points = points[mask]
     filtered_labels = labels[mask]

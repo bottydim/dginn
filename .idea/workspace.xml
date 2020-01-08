@@ -2,53 +2,16 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c88e519f-daab-4472-a061-cbd8a032f4a1" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/applications.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/0_least.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/0_least.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/0_least.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/0_least.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/0_most.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/0_most.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/0_most.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/0_most.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/1_least.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/1_least.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/1_least.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/1_least.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/1_most.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/1_most.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/1_most.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/1_most.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/2_least.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/2_least.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/2_least.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/2_least.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/2_most.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/2_most.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/2_most.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/2_most.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/3_least.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/3_least.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/3_least.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/3_least.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/3_most.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/3_most.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/3_most.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/3_most.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/4_least.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/4_least.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/4_least.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/4_least.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/4_most.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/4_most.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/4_most.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/4_most.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/5_least.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/5_least.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/5_least.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/5_least.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/5_most.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/5_most.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/5_most.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/5_most.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/6_least.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/6_least.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/6_least.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/6_least.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/6_most.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/6_most.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/6_most.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/6_most.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/7_least.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/7_least.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/7_least.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/7_least.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/7_most.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/7_most.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/7_most.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/7_most.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/8_least.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/8_least.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/8_least.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/8_least.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/8_most.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/8_most.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/8_most.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/8_most.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/9_least.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/9_least.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/9_least.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/9_least.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/9_most.fig" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/9_most.fig" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/figures/mnist/9_most.png" beforeDir="false" afterPath="$PROJECT_DIR$/figures/mnist/9_most.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/bias_detection_demo.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/cifar10_loader.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/data_loaders.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/dg_clustering.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/domain_mismatch_demo.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/save_mnist.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/aggregator_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/aggregator_utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dataset_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/dataset_utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dg_relevance.py" beforeDir="false" afterPath="$PROJECT_DIR$/dg_relevance.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/flag_uncertain_points.py" beforeDir="false" afterPath="$PROJECT_DIR$/flag_uncertain_points.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mnist_loader.py" beforeDir="false" afterPath="$PROJECT_DIR$/mnist_loader.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/uncertainty_demo.py" beforeDir="false" afterPath="$PROJECT_DIR$/uncertainty_demo.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -79,11 +42,11 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/.gitignore">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="282">
-              <caret line="143" column="8" selection-start-line="143" selection-start-column="8" selection-end-line="143" selection-end-column="8" />
+            <state relative-caret-position="218">
+              <caret line="73" column="10" selection-start-line="73" selection-start-column="10" selection-end-line="73" selection-end-column="10" />
             </state>
           </provider>
         </entry>
@@ -113,7 +76,7 @@
         <entry file="file://$PROJECT_DIR$/core.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="-3983">
-              <caret line="11" column="26" lean-forward="true" selection-start-line="11" selection-start-column="26" selection-end-line="11" selection-end-column="26" />
+              <caret line="11" column="26" selection-start-line="11" selection-start-column="26" selection-end-line="11" selection-end-column="26" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
               </folding>
@@ -126,11 +89,11 @@
           <provider selected="true" editor-type-id="text-editor" />
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/flag_uncertain_points.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-60">
-              <caret line="65" column="88" selection-start-line="65" selection-start-column="87" selection-end-line="65" selection-end-column="88" />
+            <state relative-caret-position="765">
+              <caret line="51" column="43" lean-forward="true" selection-start-line="51" selection-start-column="43" selection-end-line="51" selection-end-column="43" />
               <folding>
                 <element signature="e#89#98#0" expanded="true" />
               </folding>
@@ -142,7 +105,7 @@
         <entry file="file://$PROJECT_DIR$/dg_relevance.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="-8633">
-              <caret line="537" column="36" lean-forward="true" selection-start-line="537" selection-start-column="36" selection-end-line="537" selection-end-column="36" />
+              <caret line="538" column="36" selection-start-line="538" selection-start-column="36" selection-end-line="538" selection-end-column="36" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
               </folding>
@@ -169,6 +132,11 @@
       </list>
     </option>
   </component>
+  <component name="FindInProjectRecents">
+    <findStrings>
+      <find>figu</find>
+    </findStrings>
+  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
@@ -179,11 +147,11 @@
         <option value="$PROJECT_DIR$/dg_relevance.py" />
         <option value="$PROJECT_DIR$/informetis_demo.py" />
         <option value="$PROJECT_DIR$/utils.py" />
-        <option value="$PROJECT_DIR$/flag_uncertain_points.py" />
         <option value="$PROJECT_DIR$/uncertainty_demo.py" />
         <option value="$PROJECT_DIR$/mnist_loader.py" />
         <option value="$PROJECT_DIR$/applications.py" />
         <option value="$PROJECT_DIR$/.gitignore" />
+        <option value="$PROJECT_DIR$/flag_uncertain_points.py" />
       </list>
     </option>
   </component>
@@ -316,12 +284,12 @@
       <workItem from="1576760304359" duration="246000" />
       <workItem from="1576761967221" duration="532000" />
       <workItem from="1576845130813" duration="581000" />
-      <workItem from="1578474606399" duration="528000" />
+      <workItem from="1578474606399" duration="816000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="19776000" />
+    <option name="totallyTimeSpent" value="20064000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="415" y="60" width="1400" height="941" extended-state="0" />
@@ -364,7 +332,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/flag_uncertain_points.py</url>
-          <line>80</line>
+          <line>82</line>
           <option name="timeStamp" value="3" />
         </line-breakpoint>
       </breakpoints>
@@ -490,7 +458,7 @@
     <entry file="file://$PROJECT_DIR$/dg_relevance.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-8633">
-          <caret line="537" column="36" lean-forward="true" selection-start-line="537" selection-start-column="36" selection-end-line="537" selection-end-column="36" />
+          <caret line="538" column="36" selection-start-line="538" selection-start-column="36" selection-end-line="538" selection-end-column="36" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
           </folding>
@@ -500,7 +468,7 @@
     <entry file="file://$PROJECT_DIR$/core.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-3983">
-          <caret line="11" column="26" lean-forward="true" selection-start-line="11" selection-start-column="26" selection-end-line="11" selection-end-column="26" />
+          <caret line="11" column="26" selection-start-line="11" selection-start-column="26" selection-end-line="11" selection-end-column="26" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
           </folding>
@@ -510,20 +478,20 @@
     <entry file="file://$PROJECT_DIR$/applications.py">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
-    <entry file="file://$PROJECT_DIR$/flag_uncertain_points.py">
+    <entry file="file://$PROJECT_DIR$/.gitignore">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-60">
-          <caret line="65" column="88" selection-start-line="65" selection-start-column="87" selection-end-line="65" selection-end-column="88" />
-          <folding>
-            <element signature="e#89#98#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="218">
+          <caret line="73" column="10" selection-start-line="73" selection-start-column="10" selection-end-line="73" selection-end-column="10" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/.gitignore">
+    <entry file="file://$PROJECT_DIR$/flag_uncertain_points.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="282">
-          <caret line="143" column="8" selection-start-line="143" selection-start-column="8" selection-end-line="143" selection-end-column="8" />
+        <state relative-caret-position="765">
+          <caret line="51" column="43" lean-forward="true" selection-start-line="51" selection-start-column="43" selection-end-line="51" selection-end-column="43" />
+          <folding>
+            <element signature="e#89#98#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
