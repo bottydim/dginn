@@ -71,8 +71,8 @@ instance/
 # Scrapy stuff:
 .scrapy# Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[cod]g
-*$py.class
+*.py[cod]
+*$py.classg
 
 # C extensions
 *.so
@@ -142,3 +142,6 @@ docs/_build/
 
 #Figures
 figures/
+
+# PyCharm
+.idea/*
