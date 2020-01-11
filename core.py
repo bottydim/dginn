@@ -1,9 +1,7 @@
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 from abc import ABC, abstractmethod
-from matplotlib import pyplot as plt
-from utils import *
+from dginn.utils import *
 # this should be only in the call module, all other modules should not have it!!!
 # best keep it in the main fx!
 
