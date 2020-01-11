@@ -4,7 +4,7 @@ import tensorflow as tf
 if __name__ == '__main__':
     tf.enable_eager_execution()
 from matplotlib import pyplot as plt
-from utils import vprint, Timer
+from dginn.utils import vprint, Timer
 import math
 
 # this should be only in the call module, all other modules should not have it!!!
@@ -1129,7 +1129,6 @@ def plot_input_importance(relevance_list, input_layers, data_set_cls_dict):
 def main():
     from mnist_loader import load_mnist, build_sample_model
     from dataset_utils import filter_dataset
-    from aggregator_utils import get_count_aggregators, uncertainty_pred, compute_dg
     from core import Activations_Computer
     import os
 
