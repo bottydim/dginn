@@ -1,9 +1,8 @@
 import random
-
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-
+from demo.data_loaders.uci_datasets import *
 
 def step_decay(epoch, initial_lrate=0.1, drop=0.5, epochs_drop=10.0):
     '''
@@ -34,7 +33,7 @@ def exp_decay(epoch, initial_lrate=0.01):
     lrate = initial_lrate * np.exp(-k * t)
     return lrate
 
-def build_model(input_shape=(24,), seed=49, num_layers=3, num_hidden=100, optimizer=None):
+def build_model(input_shape=(14,), seed=49, num_layers=3, num_hidden=100, optimizer=None):
     tf.compat.v1.reset_default_graph()
     graph_level_seed = seed
     operation_level_seed = seed
@@ -82,3 +81,13 @@ def fit_model(model, X_train, Y_train, EPOCHS=200, batch_size=256, verbose=0):
     # reload best weights
     #     model.load_weights(best_weights_filepath)
     return history
+
+
+file_path = "/Users/AdminDK/Desktop/Datasets/adult/"
+
+model = build_model()
+Xtr, Xts, ytr, yts, _, _ = get_adult(None, file_path=file_path)
+X_train, _, y_train, _ = prep_data(Xtr, Xts, ytr, yts, verbose=1)
+fit_model(model, X_train, y_train, verbose=1)
+
+print("trained...")
