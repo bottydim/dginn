@@ -43,7 +43,11 @@ class Relevance_Computer(ABC):
 
 
 class Weights_Computer(Relevance_Computer):
-    def __init__(self, model, fx_modulate=np.abs, layer_start=None, agg_data_points=True, agg_neurons=False,
+    def __init__(self, model,
+                 fx_modulate=np.abs,
+                 layer_start=None,
+                 agg_data_points=True,
+                 agg_neurons=False,
                  verbose=False):
         super().__init__(model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose)
         if agg_data_points:
@@ -52,15 +56,8 @@ class Weights_Computer(Relevance_Computer):
             print("this property is reduntant for Weights Computer")
 
     def __call__(self, data):
-        return self.compute_weight(data)
 
-    def compute_weight(self, model, fx_modulate=lambda x: x, verbose=False, local=False):
-        '''
-        model: model analyzed
-        fx_module: extra weight processing
-        '''
-        model, fx_modulate, layer_start, agg_data_points, local, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.local, self.verbose
-
+        model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.local, self.verbose
         omega_val = {}
         for l in model.layers:
             # skips layers w/o weights
@@ -90,7 +87,7 @@ class Weights_Computer(Relevance_Computer):
             # 3. aggregate across datapoints
             # ===redundant for weights
             # 4. Global Neuron Aggregation: tokenize values across upper layer neurons
-            if not local:
+            if not agg_neurons:
                 score_agg = np.mean(score_val, axis=-1)
             else:
                 score_agg = score_val
@@ -109,9 +106,7 @@ class Activations_Computer(Relevance_Computer):
         super().__init__(model, fx_modulate, layer_start, agg_data_points, local, verbose)
 
     def __call__(self, data):
-        return self.compute_activations(data)
 
-    def compute_activations(self, data):
         model, fx_modulate, layer_start, agg_data_points, local, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.local, self.verbose
         omega_val = {}
         # it is useless to compute concatenate & flatten layers!
@@ -167,9 +162,6 @@ class Gradients_Computer(Relevance_Computer):
         self.batch_size = batch_size
 
     def __call__(self, data):
-        return self.compute_grads(data)
-
-    def compute_grads(self, data):
         model, fx_modulate, layer_start, agg_data_points, local, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.local, self.verbose
         loss_ = self.loss
         batch_size = self.batch_size
@@ -262,9 +254,7 @@ class Weight_Activations_Computer(Relevance_Computer):
         super().__init__(model, fx_modulate, layer_start, agg_data_points, local, verbose)
 
     def __call__(self, data):
-        return self.compute_weight_activations(data)
 
-    def compute_weight_activations(self, data):
         model, fx_modulate, layer_start, agg_data_points, local, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.local, self.verbose
 
         omega_val = {}
