@@ -222,7 +222,7 @@ class Gradients_Computer(Relevance_Computer):
             inter_l = model_k.layers[-1]
 
             # NB!
-            # make sure to compute gradient correctly for the last layer by chaning the activation fx
+            # make sure to compute gradient correctly for the last layer by changing the activation fx
             if l == model.layers[-1]:
                 activation_temp = l.activation
                 if l.activation != tf.keras.activations.linear:
