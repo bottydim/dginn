@@ -144,43 +144,58 @@ class Weights_Computer(Relevance_Computer):
 
 
 class Activations_Computer(Relevance_Computer):
+
+    """
+    Score: activations of the layer -- output of neurons
+    """
+
     def __init__(self, model, fx_modulate=np.abs,
                  layer_start=None,
                  agg_data_points=True,
-                 local=False,
+                 agg_neurons=True,
                  verbose=False):
-        super().__init__(model, fx_modulate, layer_start, agg_data_points, local, verbose)
+
+        super().__init__(model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose)
 
     def __call__(self, data):
 
-        model, fx_modulate, layer_start, agg_data_points, local, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.local, self.verbose
+        model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.agg_neurons, self.verbose
+
         omega_val = {}
-        # it is useless to compute concatenate & flatten layers!
-        # also it could be useful to solve the transition between the last convo & first dense!
+        # TODO: skip concatenate+flatten layers
+        # TODO: currently not aggregating accross locations of last convolutional layer of a model
         for l in model.layers[layer_start:]:
             vprint("layer:{}".format(l.name), verbose=verbose)
-            # concetenates the input for concatenate layers
+
+            # If layer is Concatenate, concetenates the input
             if type(l) is tf.keras.layers.Concatenate:
                 output = tf.keras.layers.concatenate(l.input)
             else:
                 output = l.input
-            # faster way is to include all layers to the output array!
+
+            # Note: "output" is the output of the previous layer (l-1), which is equal to the
+            # input of the first layer
+            # TODO: consider renaming the "output" variable
+
+            # TODO: faster way is to include all layers to the output array.
+            # Note: this will only work for the impostor DGs, not true DGs
             model_k = tf.keras.Model(inputs=model.inputs, outputs=[output])
             score_val = model_k.predict(data)
             score_val = fx_modulate(score_val)
             vprint("layer:{}--{}".format(l.name, score_val.shape), verbose=verbose)
+
             # 2 aggragate across locations
             # 2.1 4D input (c.f. images)
             if len(score_val.shape) > 3:
-
                 score_val = np.mean(score_val, axis=(1, 2))
                 vprint("\t 4D shape:{}".format(score_val.shape), verbose=verbose)
             # 2.2 aggregate across 1D-input
             elif len(score_val.shape) > 2:
                 score_val = np.mean(score_val, axis=(1))
                 vprint("\t 3D shape:{}".format(score_val.shape), verbose=verbose)
+
             # 3. aggregate across datapoints
-            # ? Why abs? naturally this affect previous experiments
+            # ToDo: Check why abs? naturally this affect previous experiments
             if agg_data_points:
                 score_val = np.mean(np.abs(score_val), axis=0)
 
@@ -191,9 +206,6 @@ class Activations_Computer(Relevance_Computer):
 
         return omega_val
 
-
-# TODO
-# remaining functions
 
 class Gradients_Computer(Relevance_Computer):
     def __init__(self, model, fx_modulate=lambda x: x,
