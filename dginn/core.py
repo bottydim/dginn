@@ -16,6 +16,12 @@ config.gpu_options.allow_growth = True
 sess = tf.Session(config=config)
 
 
+'''
+Implementation of dep. graphs, as outlined in Algorithm X in paper Y
+'''
+
+
+
 class Relevance_Computer(ABC):
     '''
     Abstract class that holds the different strategies used to compute Step I.
@@ -24,42 +30,77 @@ class Relevance_Computer(ABC):
     def __init__(self, model, fx_modulate=lambda x: x,
                  layer_start=None,
                  agg_data_points=True,
-                 local=False,
+                 agg_neurons=False,
                  verbose=False):
+        '''
+        :param model: TF Keras model that the dependency graphs are computed from.
+
+        :param fx_modulate: function applied to neuron scores during neuron importance computation.
+                            Example (1) : if we want "attribution" (is the feature positively or negatively contributing)
+                                     then can simply use identify function.
+                            Example (2) : if we want notion of overall importance, can take absolute score value
+                                          using the abs function
+
+        :param layer_start: specifying the first layer to compute the DG from. DG is computed from the layer_start
+                            up to the output layer. Can be useful for skipping initial pre-processing layers of a model
+
+        :param agg_data_points: used with the __call__ method. Determines whether to create a single DG aggregated
+                                accross input data points, or to create a DG per data point
+
+        :param agg_neurons: used with the __call__method. Determines whether to compute importances of neurones in layer
+                            L with respect to each neuron of layer (L+1), or to aggregate accross all neurons of layer
+                            (L+1)
+
+        :param verbose: print intermediate computation results
+        '''
+
+        # Assing property values to object
         self.model = model
         self.fx_modulate = fx_modulate
         self.layer_start = layer_start
         self.agg_data_points = agg_data_points
-        self.local = local
+        self.agg_neurons = agg_neurons
         self.verbose = verbose
 
     @abstractmethod
     def __call__(self, data):
         '''
+        :param data: dataset to compute DGs from.
+                     Numpy array. Accepted shapes: (Samples, D) or (Samples, D, T) or (Samples, W, H, C)
 
-        :param data: dataset to compute neuron relevances for
-        :return: th
+        :return: the DG
         '''
 
 
+
+
+
+
+
 class Weights_Computer(Relevance_Computer):
-    def __init__(self, model,
-                 fx_modulate=np.abs,
+
+    """
+    Score: weight of the edge between the neurones
+    """
+    def __init__(self, model, fx_modulate=np.abs,
                  layer_start=None,
                  agg_data_points=True,
                  agg_neurons=False,
                  verbose=False):
+
+        if verbose and not agg_data_points: print("Redundant aggregation of data points for Weights Computer")
+
+        # Set to true since weights are the same across data points
+        agg_data_points = True
+
         super().__init__(model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose)
-        if agg_data_points:
-            print("this property is reduntant for Weights Computer")
-        if layer_start is not None:
-            print("this property is reduntant for Weights Computer")
+
 
     def __call__(self, data):
 
         model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.local, self.verbose
         omega_val = {}
-        for l in model.layers:
+        for l in model.layers[layer_start:]:
             # skips layers w/o weights
             # e.g. input/pooling/concatenate/flatten
             if l.weights == []:
@@ -95,6 +136,8 @@ class Weights_Computer(Relevance_Computer):
             omega_val[l] = score_agg
 
         return omega_val
+
+
 
 
 class Activations_Computer(Relevance_Computer):
