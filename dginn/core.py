@@ -1,9 +1,10 @@
-import numpy as np
-import pandas as pd
-import tensorflow as tf
 from abc import ABC, abstractmethod
-from matplotlib import pyplot as plt
+
+import numpy as np
+import tensorflow as tf
+
 from utils import *
+
 # this should be only in the call module, all other modules should not have it!!!
 # best keep it in the main fx!
 
@@ -50,10 +51,13 @@ class Weights_Computer(Relevance_Computer):
         super().__init__(model, fx_modulate, layer_start, agg_data_points, local, verbose)
         if agg_data_points:
             print("this property is reduntant for Weights Computer")
+        if layer_start is not None:
+            print("this property is reduntant for Weights Computer")
+
     def __call__(self, data):
         return self.compute_weight(data)
 
-    def compute_weight(self,model, fx_modulate=lambda x: x, verbose=False, local=False):
+    def compute_weight(self, model, fx_modulate=lambda x: x, verbose=False, local=False):
         '''
         model: model analyzed
         fx_module: extra weight processing
@@ -88,7 +92,7 @@ class Weights_Computer(Relevance_Computer):
                 score_val = np.mean(score_val, axis=(0))
             # 3. aggregate across datapoints
             # ===redundant for weights
-            # 4. Global Aggregation: tokenize values across upper layer neurons
+            # 4. Global Neuron Aggregation: tokenize values across upper layer neurons
             if not local:
                 score_agg = np.mean(score_val, axis=-1)
             else:
@@ -97,6 +101,7 @@ class Weights_Computer(Relevance_Computer):
             omega_val[l] = score_agg
 
         return omega_val
+
 
 class Activations_Computer(Relevance_Computer):
     def __init__(self, model, fx_modulate=np.abs,
@@ -262,7 +267,7 @@ class Weight_Activations_Computer(Relevance_Computer):
     def __call__(self, data):
         return self.compute_weight_activations(data)
 
-    def compute_weight_activations(self,data):
+    def compute_weight_activations(self, data):
         model, fx_modulate, layer_start, agg_data_points, local, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.local, self.verbose
 
         omega_val = {}

@@ -1,24 +1,15 @@
-import numpy
-from matplotlib import pyplot
-
-from core import Activations_Computer
 from loadData import load_informetis
-from uncertainty_demo import save_fig
+from demo.uncertainty_demo import save_fig
 
 if __name__ == '__main__':
     import tensorflow as tf
 
     tf.enable_eager_execution()
 
-from collections import defaultdict
-from mnist_loader import load_mnist, get_mnist_model
-from dataset_utils import filter_dataset
-from data_visualizers import visualize_samples
-from aggregator_utils import get_count_aggregators, compute_dg_per_datapoint, extract_dgs_by_ids, \
+from aggregator_utils import extract_dgs_by_ids, \
     get_aggregators_from_collection
 from core import *
 import os
-import dill as pickle
 from aggregator_utils import compute_dg_per_datapoint
 from dginn.core import Activations_Computer
 from dginn.aggregator_utils import get_aggregators_from_collection
@@ -205,7 +196,7 @@ def prototypical_examples(class_names_human, cls_data_sets, model):
 
 
 def informetis_prototypical(dataset, dg_collection_query, aggregator, show):
-    from dginn.aggregator_utils import get_aggregators_from_collection, get_number_datapoints, extract_dgs_by_ids
+    from dginn.aggregator_utils import get_number_datapoints, extract_dgs_by_ids
 
     similarities = {}
     num_datapoints = get_number_datapoints(dg_collection_query)
