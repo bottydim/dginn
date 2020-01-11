@@ -335,37 +335,38 @@ class Gradients_Computer(Relevance_Computer):
 
 
 class Weight_Activations_Computer(Relevance_Computer):
+
+    """
+    Score: activation score * weight score
+    """
+
     def __init__(self, model, fx_modulate=np.abs,
                  layer_start=None,
                  agg_data_points=True,
-                 local=False,
+                 agg_neurons=True,
                  verbose=False):
-        super().__init__(model, fx_modulate, layer_start, agg_data_points, local, verbose)
+
+        super().__init__(model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose)
 
     def __call__(self, data):
 
-        model, fx_modulate, layer_start, agg_data_points, local, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.local, self.verbose
+        model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.agg_neurons, self.verbose
 
         omega_val = {}
         for l in model.layers:
-
             # skips layers w/o weights
             # e.g. input/pooling
             if l.weights == []:
                 omega_val[l] = np.array([])
-
                 continue
 
             # 1. compute values
-
-            # 1.1 compute activations
+            # 1.1 compute activations of current layer
             model_k = tf.keras.Model(inputs=model.inputs, outputs=[l.input])
             score_val_a = model_k.predict(data)
-
             score_val_a = fx_modulate(score_val_a)
 
-            # 1.2 compute
-
+            # 1.2 get weights of current layer
             score_val_w = l.weights[0][:]
             score_val_w = fx_modulate(score_val_w)
 
@@ -389,7 +390,7 @@ class Weight_Activations_Computer(Relevance_Computer):
             elif len(score_val_w.shape) > 2:
                 score_val_w = np.mean(score_val_w, axis=(0))
 
-            # 3. aggregate across datapoints
+            # 3. aggregate activation across datapoints
             score_agg_a = np.mean(score_val_a, axis=0)
 
             # ===redundant for weights
