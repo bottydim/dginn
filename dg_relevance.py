@@ -110,14 +110,14 @@ def compute_activations_gen(data, fx_modulate=lambda x: x, layer_start=None,
             vprint("layer:{}".format(l.name), verbose=verbose)
             # 1. compute values
             # l.output vs l.input
-            # l.output => r[l] = NB on the same layer (which makes sense for activations)
+            # l.output => omega_val[l] = NB on the same layer (which makes sense for activations)
             # conv1d_8--(2, 1170, 20) (2,32,32,20)
             # 3D shape:(2, 20)
             # omega_val.shape:(20,)
             # CHALLENGE => it doesn't make sense for the last layer
             # layer:targetPower--(1, 23)
             # omega_val.shape:(23,) => where instead we want the importance
-            # l.input  =>  r[l] = NB of the
+            # l.input  =>  omega_val[l] = NB of the previous layer
             # conv1d_8--(2, 1199, 1) \\ shape of previous layer!
             # 3D shape:(2, 1)
             # omega_val.shape:(1,)
