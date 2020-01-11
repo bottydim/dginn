@@ -58,7 +58,7 @@ class Relevance_Computer(ABC):
         self.fx_modulate = fx_modulate
         self.layer_start = layer_start
         self.agg_data_points = agg_data_points
-        self.local = agg_neurons
+        self.agg_neurons = agg_neurons
         self.verbose = verbose
 
     @abstractmethod
@@ -77,14 +77,19 @@ class Relevance_Computer(ABC):
 
 
 class Weights_Computer(Relevance_Computer):
+    """
+    Score: weight of the edge between the neurones
+    """
+
     def __init__(self, model, fx_modulate=np.abs,
                  layer_start=None,
                  agg_data_points=True,
-                 local=False,
+                 agg_neurons=False,
                  verbose=False):
-        super().__init__(model, fx_modulate, layer_start, agg_data_points, local, verbose)
+        super().__init__(model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose)
         if agg_data_points:
             print("this property is reduntant for Weights Computer")
+
     def __call__(self, data):
         return self.compute_weight(data)
 
