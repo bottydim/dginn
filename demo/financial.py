@@ -101,10 +101,18 @@ fit_model(model, X_train, y_train, verbose=1)
 # X_train = X
 y_train = y_train
 
+# TODO: fix this bug:
+# note: weights doesn't work, because there is no aggregation, so it is missing a dimension because it still aggregates
+# over data points
+# Weight_Activations_Computer: also aggregates over kek points
+
+# TODO:
+# input layer is returned fully, so need to filter it somehow
+
 #computer = Weights_Computer
-#computer = Activations_Computer
+computer = Activations_Computer
 #computer = Weight_Activations_Computer
-computer = Gradients_Computer
+#computer = Gradients_Computer
 dgs = compute_dg_per_datapoint(X_train, model, computer)
 
 dg_collections_list = []
@@ -116,5 +124,6 @@ for cls in all_classes:
     dg_collections_list.append(dgs_cls)
 
 
+feature_indices =  dg_collections_list[0][model.layers[0]]
 
 print("trained...")
