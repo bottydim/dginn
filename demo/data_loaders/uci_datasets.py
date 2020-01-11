@@ -56,9 +56,7 @@ adult_column_names = ['age', 'workclass', 'fnlwgt', 'education',
                       'native-country', 'income-per-year']
 
 
-def get_adult(sensitive_feature_name, scale=True, remove_z=False, verbose=0,**kwargs):
-    import os
-    file_path = "/home/btd26/datasets/adult/"
+def get_adult(sensitive_feature_name, scale=True, remove_z=False, verbose=0,  file_path = "/home/btd26/datasets/adult/", **kwargs):
 
     if scale:
         file_name = "adult.npz"
@@ -96,14 +94,13 @@ def get_adult(sensitive_feature_name, scale=True, remove_z=False, verbose=0,**kw
 bank_sensitive_features_dict = {"marital": 2, "age": 0}
 
 
-def get_bank(sensitive_feature_name, remove_z=False, **kwargs):
+def get_bank(sensitive_feature_name, remove_z=False,  file_path = "/home/btd26/datasets/adult/", **kwargs):
     # assume
     # 0 age
     # 2 marital
 
     z_idx = get_z_idx(sensitive_feature_name, bank_sensitive_features_dict)
 
-    file_path = "/home/btd26/datasets/bank/"
     file_name = "bank.npz"
     file_add = os.path.join(file_path, file_name)
     if os.path.exists(file_add):
