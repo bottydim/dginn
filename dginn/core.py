@@ -30,7 +30,7 @@ class Relevance_Computer(ABC):
     def __init__(self, model, fx_modulate=lambda x: x,
                  layer_start=None,
                  agg_data_points=True,
-                 agg_neurons=False,
+                 agg_neurons=True,
                  verbose=False):
         '''
         :param model: TF Keras model that the dependency graphs are computed from.
@@ -54,7 +54,7 @@ class Relevance_Computer(ABC):
         :param verbose: print intermediate computation results
         '''
 
-        # Assing property values to object
+        # Assign property values to object
         self.model = model
         self.fx_modulate = fx_modulate
         self.layer_start = layer_start
@@ -82,10 +82,11 @@ class Weights_Computer(Relevance_Computer):
     """
     Score: weight of the edge between the neurones
     """
+
     def __init__(self, model, fx_modulate=np.abs,
                  layer_start=None,
                  agg_data_points=True,
-                 agg_neurons=False,
+                 agg_neurons=True,
                  verbose=False):
 
         if verbose and not agg_data_points: print("Redundant aggregation of data points for Weights Computer")
@@ -98,8 +99,12 @@ class Weights_Computer(Relevance_Computer):
 
     def __call__(self, data):
 
-        model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.local, self.verbose
+        model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.agg_neurons, self.verbose
+
+        # Dictionary from layer to neuron importances in that layer
+        # TODO: check whether it's that layer, or the next layer
         omega_val = {}
+
         for l in model.layers[layer_start:]:
             # skips layers w/o weights
             # e.g. input/pooling/concatenate/flatten
@@ -108,7 +113,7 @@ class Weights_Computer(Relevance_Computer):
                 omega_val[l] = np.array([])
                 continue
             vprint("layer:{}".format(l.name), verbose=verbose)
-            # 1. compute values
+            # 1. compute values: copy weights, and apply modulation function
             vprint("w.shape:{}".format(l.weights[0].shape), verbose=verbose)
             score_val = l.weights[0][:, :]
             score_val = fx_modulate(score_val)
@@ -125,15 +130,13 @@ class Weights_Computer(Relevance_Computer):
                 vprint("\tshape:{}", verbose=verbose)
                 vprint("\tscore_val.shape:{}".format(score_val.shape), verbose=verbose)
                 score_val = np.mean(score_val, axis=(0))
-            # 3. aggregate across datapoints
-            # ===redundant for weights
+
             # 4. Global Neuron Aggregation: tokenize values across upper layer neurons
-            if not agg_neurons:
-                score_agg = np.mean(score_val, axis=-1)
-            else:
-                score_agg = score_val
-            vprint("\tomega_val.shape:{}".format(score_agg.shape), verbose=verbose)
-            omega_val[l] = score_agg
+            if agg_neurons:
+                score_val = np.mean(score_val, axis=-1)
+
+            vprint("\tomega_val.shape:{}".format(score_val.shape), verbose=verbose)
+            omega_val[l] = score_val
 
         return omega_val
 
