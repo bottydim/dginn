@@ -1,8 +1,15 @@
+import tensorflow as tf
+
+if __name__=='__main__':
+    tf.enable_eager_execution()
+
 import random
 import numpy as np
-import tensorflow as tf
 from tensorflow import keras
 from demo.data_loaders.uci_datasets import *
+from dginn.core import *
+from aggregator_utils import compute_dg_per_datapoint, extract_dgs_by_ids
+
 
 def step_decay(epoch, initial_lrate=0.1, drop=0.5, epochs_drop=10.0):
     '''
@@ -62,7 +69,7 @@ def clone_model(model):
     return model_orig
 
 
-def fit_model(model, X_train, Y_train, EPOCHS=200, batch_size=256, verbose=0):
+def fit_model(model, X_train, Y_train, EPOCHS=20, batch_size=256, verbose=0):
     # from keras.callbacks import LearningRateScheduler
     # lrate = LearningRateScheduler(exp_decay)
 
@@ -89,5 +96,25 @@ model = build_model()
 Xtr, Xts, ytr, yts, _, _ = get_adult(None, file_path=file_path)
 X_train, _, y_train, _ = prep_data(Xtr, Xts, ytr, yts, verbose=1)
 fit_model(model, X_train, y_train, verbose=1)
+
+# SCRAP
+# X_train = X
+y_train = y_train
+
+#computer = Weights_Computer
+#computer = Activations_Computer
+#computer = Weight_Activations_Computer
+computer = Gradients_Computer
+dgs = compute_dg_per_datapoint(X_train, model, computer)
+
+dg_collections_list = []
+all_classes = np.unique(y_train).tolist()
+for cls in all_classes:
+    idx_cls = np.where(y_train == cls)[0]
+    # print(idx_cls[0:10])
+    dgs_cls = extract_dgs_by_ids(dgs, idx_cls)
+    dg_collections_list.append(dgs_cls)
+
+
 
 print("trained...")
