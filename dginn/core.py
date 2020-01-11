@@ -43,12 +43,9 @@ class Relevance_Computer(ABC):
 
 
 class Weights_Computer(Relevance_Computer):
-    def __init__(self, model, fx_modulate=np.abs,
-                 layer_start=None,
-                 agg_data_points=True,
-                 local=False,
+    def __init__(self, model, fx_modulate=np.abs, layer_start=None, agg_data_points=True, agg_neurons=False,
                  verbose=False):
-        super().__init__(model, fx_modulate, layer_start, agg_data_points, local, verbose)
+        super().__init__(model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose)
         if agg_data_points:
             print("this property is reduntant for Weights Computer")
         if layer_start is not None:
