@@ -87,12 +87,14 @@ class Weights_Computer(Relevance_Computer):
                  agg_data_points=True,
                  agg_neurons=False,
                  verbose=False):
-        super().__init__(model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose)
-        if agg_data_points:
-            print("this property is reduntant for Weights Computer")
 
-        if layer_start is not None:
-            print("this property is reduntant for Weights Computer")
+        if verbose and not agg_data_points: print("Redundant aggregation of data points for Weights Computer")
+
+        # Set to true since weights are the same across data points
+        agg_data_points = True
+
+        super().__init__(model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose)
+
 
     def __call__(self, data):
         return self.compute_weight(data)
@@ -105,7 +107,7 @@ class Weights_Computer(Relevance_Computer):
         model, fx_modulate, layer_start, agg_data_points, local, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.local, self.verbose
 
         omega_val = {}
-        for l in model.layers:
+        for l in model.layers[layer_start:]:
             # skips layers w/o weights
             # e.g. input/pooling/concatenate/flatten
             if l.weights == []:
