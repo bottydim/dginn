@@ -207,74 +207,87 @@ class Activations_Computer(Relevance_Computer):
         return omega_val
 
 
+
 class Gradients_Computer(Relevance_Computer):
+
+    """
+    Score: gradient model loss wrt to the weight
+    """
+
     def __init__(self, model, fx_modulate=lambda x: x,
                  loss=lambda x: tf.reduce_sum(x[:, :]),
                  batch_size=128,
                  layer_start=None,
                  agg_data_points=True,
-                 local=False,
+                 agg_neurons=True,
                  verbose=False):
-        super().__init__(model, fx_modulate, layer_start, agg_data_points, local, verbose)
+
+        super().__init__(model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose)
+
+        # TODO: rename this from "loss" (not really a loss)
+        # Function of data-points being differentiated
         self.loss = loss
         self.batch_size = batch_size
 
     def __call__(self, data):
-        model, fx_modulate, layer_start, agg_data_points, local, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.local, self.verbose
+        model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.agg_neurons, self.verbose
         loss_ = self.loss
         batch_size = self.batch_size
         omega_val = {}
-        for l in model.layers:
+
+        for l in model.layers[layer_start:]:
             # skips layers w/o weights
             # e.g. input/pooling
             if l.weights == []:
                 omega_val[l] = np.array([])
                 continue
-                # 1. compute values
-            #
+
+            # 1. compute values
             model_k = tf.keras.Model(inputs=model.inputs, outputs=[l.output])
             # last layer of the new model
             inter_l = model_k.layers[-1]
 
             # NB!
             # make sure to compute gradient correctly for the last layer by changing the activation fx
+            # obtain the logits of the model, instead of softmax output
             if l == model.layers[-1]:
                 activation_temp = l.activation
                 if l.activation != tf.keras.activations.linear:
                     l.activation = tf.keras.activations.linear
 
+            # intitialise score values
             score_val = np.zeros(inter_l.weights[0].shape)
 
-            # handle multi-input data
+            data_len = self.count_number_points(data)
 
-            if type(data) is dict:
-                key = list(data.keys())[0]
-                data_len = data[key].shape[0]
-            else:
-                data_len = data.shape[0]
-
-            # what do we do with multi-input data?!
-            # TODO fix strange name change : vs _
+            # TODO: check how we handle multi-input data?!
+            # TODO: fix strange layer name change : vs _
             input_names = [l.name.split(":")[0] for l in model.inputs]
-            # !!!!! FOLLOWING Line not tested
+            # Note: line not tested
             input_names = [l.split("_")[0] for l in input_names]
+
             # split the data into batches
             for i in range(0, data_len, batch_size):
-                # TODO experiment speed if with device(cpu:0)
+                # TODO: experiment with speed if with device(cpu:0)
                 with tf.GradientTape() as t:
-                    # for some reason requires tensor, otherwise blows up
+                    # t.gradient requires tensor => convert numpy array to tensor
                     # c.f. that for activations we use model.predict
                     if type(data) is dict:
                         tensor = []
+
+                        # if multi-input, create a list of tensors per input
                         for k in input_names:
                             tensor.append(data[k][i:min(i + batch_size, data_len)].astype('float32'))
                     else:
                         tensor = tf.convert_to_tensor(data[i:min(i + batch_size, data_len)], dtype=tf.float32)
+
+                    # Compute gradient of loss wrt to weights for current batch
                     current_loss = loss_(model_k(tensor))
-                    dW, db = t.gradient(current_loss, [*inter_l.weights])
+                    dW, _ = t.gradient(current_loss, [*inter_l.weights])
+
                 score_val += fx_modulate(dW)
 
-            # restor output function!
+            # restor output activation
             if l == model.layers[-1]:
                 l.activation = activation_temp
 
@@ -282,18 +295,20 @@ class Gradients_Computer(Relevance_Computer):
             # 2 aggragate across locations
             # 2.1 4D
             if len(score_val.shape) > 3:
-                # (3, 3, 3, 64) -> for activations, it is not aggregated across data-points
+                # (3, 3, 3, 64) -> here aggregated across data-points already
+                # so need to average over axes (0, 1) vs (1, 2)
                 score_val = np.mean(score_val, axis=(0, 1))
                 vprint("\t 4D shape:{}".format(score_val.shape), verbose=verbose)
             elif len(score_val.shape) > 2:
                 score_val = np.mean(score_val, axis=(0))
                 vprint("\t 3D shape:{}".format(score_val.shape), verbose=verbose)
-            # 3. aggregate across datapoints
 
-            # already produced by line 230
-            # to include data point analysis, we can use persistant gradient_tape
-            # compute point by point or use the loss
-            # explore this issue for efficiency gain https://github.com/tensorflow/tensorflow/issues/4897
+            # TODO: Explore how to not aggregate accross data points
+            '''
+            to include data point analysis, we can use persistant gradient_tape
+            compute point by point or use the loss
+            explore this issue for efficiency gain https://github.com/tensorflow/tensorflow/issues/4897
+            '''
 
             # 4. tokenize values
             mean = np.mean(score_val, axis=1)
@@ -301,6 +316,22 @@ class Gradients_Computer(Relevance_Computer):
 
             vprint("\t omega_val.shape:{}".format(mean.shape), verbose=verbose)
         return omega_val
+
+
+    def count_number_points(self, data):
+        """
+        :param data: input data. Could be a numpy array, or could be a dictionary of
+                     {layer_name : numpy array} in case of multi-input data
+        :return:
+        """
+        # handle multi-input data
+        if type(data) is dict:
+            key = list(data.keys())[0]
+            data_len = data[key].shape[0]
+        else:
+            data_len = data.shape[0]
+        return data_len
+
 
 
 class Weight_Activations_Computer(Relevance_Computer):
