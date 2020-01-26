@@ -54,7 +54,7 @@ def dginn_local_importance_(model, X, ys, Relevance_Computer=Activations_Compute
     X_train = X
     y_train = ys
     computer = Relevance_Computer
-    compute_fx = computer(model=model, agg_data_points=True)
+    compute_fx = computer(model=model, agg_data_points=False)
     dg_collections_list = []
     all_classes = np.unique(y_train).tolist()
     for cls in all_classes:
@@ -66,23 +66,24 @@ def dginn_local_importance_(model, X, ys, Relevance_Computer=Activations_Compute
     return dg_collections_list
 
 
-def dginn_local_importance(model,X,ys,Relevance_Computer=Activations_Computer,cls=None):
+def dginn_local_importance(model,X,ys,Relevance_Computer=Activations_Computer,selected_classes = None):
 
     # Get DG collection for every class, for every point
-    dg_collections_list = dginn_global_importance_(model, X, ys, Relevance_Computer=Relevance_Computer)
+    dg_collections_list = dginn_local_importance_(model, X, ys, Relevance_Computer=Relevance_Computer)
 
     # Extract feature importance for both classes.
     f_nb_0 = dg_collections_list[0][model.layers[0]]
     f_nb_1 = dg_collections_list[1][model.layers[0]]
-    print("dg_collections_list::Same class importance:", np.array_equal(f_nb_0, f_nb_1))
 
-    if cls is None:
-        f_nb_list = []
-        for i in range(len(dg_collections_list)):
-            f_nb_list.append(dg_collections_list[i][model.layers[0]])
-        return np.mean(f_nb_list, axis=0)
-    else:
-        return dg_collections_list[cls][model.layers[0]]
+    if selected_classes is None:
+        selected_classes = [i for i in range(len(dg_collections_list))]
+
+    f_nb_list = []
+
+    for cls in selected_classes:
+        f_nb_list.append(dg_collections_list[cls][model.layers[0]])
+
+    return f_nb_list
 
 
 
