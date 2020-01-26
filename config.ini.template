@@ -1,5 +1,5 @@
 ; config.ini
 [PATH]
-DATA_PATH =
+DATA_PATH = "/"
 [GPU]
 ;GPU_MEMORY = 11
