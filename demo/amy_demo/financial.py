@@ -7,7 +7,9 @@ from demo.data_loaders.uci_datasets import *
 from dginn.core import *
 from aggregator_utils import compute_dg_per_datapoint, extract_dgs_by_ids
 from demo.amy_demo.model_build import *
-from applications.feature_importance import dginn_local_importance
+from applications.feature_importance import dginn_local_importance, dginn_global_importance
+
+from adversarial_explanations.evaluate import  plot_ranking_histograms
 
 # Load data
 sensitive_feature_name = None # TODO: experiment with sensitive features
@@ -21,18 +23,13 @@ model = build_model()
 # Fit model to the data
 fit_model(model, X_train, y_train, verbose=1)
 
-# Generate adversarially-trained model
-
+# TODO: Generate adversarially-trained model
 
 # Extract feature importances using different methods
 feature_importance_methods = [dginn_local_importance]
 
-for feature_importance_method in feature_importance_methods:
+# Specify feature to be analysed
+selected_feature = 10
 
-    # Compute and compare feature importances for both the original and adversarially-trained model
-    feature_importance_orig = feature_importance_method(model, Xts, yts)
-    feature_importance_adv = None
-
-    print("Local feature importance: ", feature_importance_orig)
-
-    # TODO: how to compare? draw figures?
+# Run histogram plotting
+plot_ranking_histograms([model], Xts, selected_feature, yts, attribution_methods=dginn_local_importance)
