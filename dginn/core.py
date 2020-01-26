@@ -136,7 +136,7 @@ class Weights_Computer(Relevance_Computer):
                 score_val = np.mean(score_val, axis=-1)
 
             vprint("\tomega_val.shape:{}".format(score_val.shape), verbose=verbose)
-            omega_val[l] = score_val
+            omega_val[l] = np.expand_dims(score_val,axis=0)
 
         return omega_val
 
@@ -312,7 +312,10 @@ class Gradients_Computer(Relevance_Computer):
 
             # 4. tokenize values
             mean = np.mean(score_val, axis=1)
-            omega_val[l] = mean
+            # omega_val[l] = mean
+
+            # TODO: return to previous line, once data point aggregation is fixed
+            omega_val[l] = np.expand_dims(mean, axis=0)
 
             vprint("\t omega_val.shape:{}".format(mean.shape), verbose=verbose)
         return omega_val
@@ -398,6 +401,7 @@ class Weight_Activations_Computer(Relevance_Computer):
             # ===redundant for activations
             score_agg_w = np.mean(score_val_w, axis=-1)
             omega_val[l] = score_agg_a * score_agg_w
+            omega_val[l] = np.expand_dims(omega_val[l] , axis=0)
         return omega_val
 
 
