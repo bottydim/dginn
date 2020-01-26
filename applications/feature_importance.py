@@ -3,18 +3,6 @@ from matplotlib import pyplot as plt
 from aggregator_utils import *
 from dginn.core import *
 
-
-## NO USED
-def dginn_importance(model, X, ys, Relevance_Computer=Activations_Computer):
-    # 2 options
-    # 1. compute per data-point, do fancy aggregation,
-    # 2. average based on something
-    # input_layers = get_input_layers(model, include_adjacent=True)
-    computer = Relevance_Computer(model, fx_modulate=np.abs, agg_data_points=True)
-
-    agg = get_count_aggregators_per_class(X, ys, model, n_samples=100, Relevance_Computer=computer)
-
-
 def dginn_global_importance_(model, X, ys, Relevance_Computer=Activations_Computer):
     X_train = X
     y_train = ys
@@ -73,6 +61,17 @@ def vis_global_unit_importance(model,dg_collections_list):
             ax = axes[j][i]
             f_nb = dg_collections_list[i][l]
             vis_feature_nb(f_nb,ax=ax)
+
+
+## NO USED
+def dginn_importance(model, X, ys, Relevance_Computer=Activations_Computer):
+    # 2 options
+    # 1. compute per data-point, do fancy aggregation,
+    # 2. average based on something
+    # input_layers = get_input_layers(model, include_adjacent=True)
+    computer = Relevance_Computer(model, fx_modulate=np.abs, agg_data_points=True)
+
+    agg = get_count_aggregators_per_class(X, ys, model, n_samples=100, Relevance_Computer=computer)
 
 
 def main():

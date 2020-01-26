@@ -3,12 +3,12 @@ if __name__ == '__main__':
     tf.enable_eager_execution()
 
 from aggregator_utils import compute_dg_per_datapoint, extract_dgs_by_ids
-from mnist_loader import load_mnist, get_mnist_model
+from mnist_loader import get_mnist_model
 from core import *
 from core import Activations_Computer
 from dg_relevance import cf_dgs
 from dg_clustering import dendrogram_clustering
-from data_loaders import load_biased_mnist_dataset
+from demo.data_loaders.mnist_loaders import load_biased_mnist_dataset
 
 def main():
 

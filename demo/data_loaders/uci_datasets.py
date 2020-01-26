@@ -7,6 +7,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 
+current_path = current_path = os.path.realpath('__file__')
+dataset_path = os.path.join(os.path.dirname(current_path), "data")
 #### ADD Dataset TODO
 # 1.
 # get_fx
@@ -23,7 +25,7 @@ german_sensitive_features_dict = {"gender": 8, "age": 12}
 
 def get_german(sensitive_feature_name, filepath=None, remove_z=False, **kwargs):
     if filepath is None:
-        filepath = "/home/btd26/datasets/german/german.data-numeric"
+        filepath = os.path.join(dataset_path, "german.data-numeric")
     df = pd.read_csv(filepath, header=None, delim_whitespace=True)
 
     # change label to 0/1
@@ -56,8 +58,8 @@ adult_column_names = ['age', 'workclass', 'fnlwgt', 'education',
                       'native-country', 'income-per-year']
 
 
-def get_adult(sensitive_feature_name, scale=True, remove_z=False, verbose=0,  file_path = "/home/btd26/datasets/adult/", **kwargs):
-
+def get_adult(sensitive_feature_name, scale=True, remove_z=False, verbose=0, file_path=dataset_path,
+              **kwargs):
     if scale:
         file_name = "adult.npz"
         arr_holder = np.load(os.path.join(file_path, file_name))
@@ -94,7 +96,7 @@ def get_adult(sensitive_feature_name, scale=True, remove_z=False, verbose=0,  fi
 bank_sensitive_features_dict = {"marital": 2, "age": 0}
 
 
-def get_bank(sensitive_feature_name, remove_z=False,  file_path = "/home/btd26/datasets/adult/", **kwargs):
+def get_bank(sensitive_feature_name, remove_z=False, file_path=dataset_path, **kwargs):
     # assume
     # 0 age
     # 2 marital
@@ -107,7 +109,9 @@ def get_bank(sensitive_feature_name, remove_z=False,  file_path = "/home/btd26/d
         arr_holder = np.load(os.path.join(file_path, file_name))
         fit_scale = arr_holder[arr_holder.files[0]]
     else:
+        print("LOADING BANK WARNING! SHOULD ONLY BE USED IN SPECIAL CASES")
         filepath = "/home/btd26/datasets/bank/bank-additional/bank-additional-full.csv"
+        filepath = os.path.join(dataset_path, "bank-additional-full.csv")
         df = pd.read_csv(filepath, sep=";")
         categorical_columns = []
         for c in df.columns:
@@ -137,14 +141,14 @@ def get_bank(sensitive_feature_name, remove_z=False,  file_path = "/home/btd26/d
 compas_sensitive_features_dict = {"sex": 0, "race": 2, "age": 1}
 
 
-def get_compass(sensitive_feature_name, remove_z=False, file_path="/home/btd26/datasets/compas/",
+def get_compass(sensitive_feature_name, remove_z=False, file_path=dataset_path,
                 file_name="compas.npy", **kwargs):
     z_idx = get_z_idx(sensitive_feature_name, compas_sensitive_features_dict)
 
     # load file
     file_add = os.path.join(file_path, file_name)
     if os.path.exists(file_add):
-        M = np.load("/home/btd26/datasets/compas/compas.npy")
+        M = np.load(file_add)
     else:
         from aif360.datasets import CompasDataset
         compas = CompasDataset()
@@ -181,6 +185,7 @@ def get_n_features_list():
         n_features = X_train.shape[-1]
         n_features_list.append(n_features)
     return n_features_list
+
 
 def get_data_list():
     data_list = []

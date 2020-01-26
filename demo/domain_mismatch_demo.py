@@ -3,11 +3,10 @@ if __name__ == '__main__':
     tf.enable_eager_execution()
 
 
-from data_loaders import randomly_sample
+from demo.data_loaders.mnist_loaders import randomly_sample
 from mnist_loader import load_mnist, get_mnist_model
 from aggregator_utils import compute_dg_per_datapoint
 from aggregator_utils import get_count_aggregators, extract_dgs_by_ids
-from core import *
 from core import Activations_Computer
 from dataset_utils import filter_dataset
 import numpy as np
