@@ -4,6 +4,7 @@ from aggregator_utils import *
 from dginn.core import *
 
 
+## NO USED
 def dginn_importance(model, X, ys, Relevance_Computer=Activations_Computer):
     # 2 options
     # 1. compute per data-point, do fancy aggregation,
@@ -30,18 +31,48 @@ def dginn_global_importance_(model, X, ys, Relevance_Computer=Activations_Comput
     return dg_collections_list
 
 
+def dginn_global_importance(model,X,ys,Relevance_Computer=Activations_Computer,cls=None):
+    dg_collections_list = dginn_global_importance_(model,X,ys,Relevance_Computer=Relevance_Computer)
+    # TODO
+    # (1) return the importance averaged over all class s.t.:
+    # for each point the feature importance corresponds to the correct / predicted class importance
+    # (2) investigate why the feature importance is the same regardless of the class
+    f_nb_0 = dg_collections_list[0][model.layers[0]]
+    f_nb_1 = dg_collections_list[1][model.layers[0]]
+    print("dg_collections_list::Same class importance:",np.array_equal(f_nb_0,f_nb_1))
+    # accumulator
+#     f_nb_acc = np.zeros_like(dg_collections_list[0][model.layers[0]])
+    # average over classes / should be TODO (1) from above
+    if cls is None:
+        f_nb_list = []
+        for i in range(len(dg_collections_list)):
+            f_nb_list.append(dg_collections_list[i][model.layers[0]])
+        return np.mean(f_nb_list,axis=0)
+    else:
+        return dg_collections_list[cls][model.layers[0]]
+
+
 # VISUALISATION FXS
 
-def vis_global_unit_importance(model, dg_collections_list):
-    # global neuron importance visualisation across layers
+def vis_feature_nb(f_nb,ax=None,figsize=None):
+    if ax is None:
+        import matplotlib as mpl
+        if figsize is None:
+            figsize = mpl.rcParams['figure.figsize']
+        fig,ax = plt.subplots(1,1,figsize=figsize)
+    ax.bar(range(len(f_nb)),f_nb)
+    return ax
+
+def vis_global_unit_importance(model,dg_collections_list):
+    #global neuron importance visualisation across layers
     n_layers = len(model.layers)
     n_cls = len(dg_collections_list)
-    fig, axes = plt.subplots(n_layers, n_cls, figsize=(10, 5))
-    for j, l in enumerate(model.layers):
+    fig,axes = plt.subplots(n_layers,n_cls,figsize=(10,5))
+    for j,l in enumerate(model.layers):
         for i in range(2):
             ax = axes[j][i]
             f_nb = dg_collections_list[i][l]
-            ax.bar(range(len(f_nb)), f_nb)
+            vis_feature_nb(f_nb,ax=ax)
 
 
 def main():
