@@ -7,7 +7,7 @@ from demo.data_loaders.uci_datasets import *
 from dginn.core import *
 from aggregator_utils import compute_dg_per_datapoint, extract_dgs_by_ids
 from demo.amy_demo.model_build import *
-
+from applications.feature_importance import dginn_local_importance
 
 # Load data
 sensitive_feature_name = None # TODO: experiment with sensitive features
@@ -25,12 +25,14 @@ fit_model(model, X_train, y_train, verbose=1)
 
 
 # Extract feature importances using different methods
-feature_importance_methods = []
+feature_importance_methods = [dginn_local_importance]
 
 for feature_importance_method in feature_importance_methods:
 
     # Compute and compare feature importances for both the original and adversarially-trained model
-    feature_importance_orig = ...
-    feature_importance_adv = ...
+    feature_importance_orig = feature_importance_method(model, Xts, yts)
+    feature_importance_adv = None
+
+    print("Local feature importance: ", feature_importance_orig)
 
     # TODO: how to compare? draw figures?

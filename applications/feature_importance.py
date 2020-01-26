@@ -3,6 +3,7 @@ from matplotlib import pyplot as plt
 from aggregator_utils import *
 from dginn.core import *
 
+
 def dginn_global_importance_(model, X, ys, Relevance_Computer=Activations_Computer):
     X_train = X
     y_train = ys
@@ -38,6 +39,52 @@ def dginn_global_importance(model,X,ys,Relevance_Computer=Activations_Computer,c
         return np.mean(f_nb_list,axis=0)
     else:
         return dg_collections_list[cls][model.layers[0]]
+
+
+def dginn_local_importance_(model, X, ys, Relevance_Computer=Activations_Computer):
+    '''
+    Return collection of dependency graphs, by class
+
+    :param model:
+    :param X:
+    :param ys:
+    :param Relevance_Computer:
+    :return:
+    '''
+    X_train = X
+    y_train = ys
+    computer = Relevance_Computer
+    compute_fx = computer(model=model, agg_data_points=True)
+    dg_collections_list = []
+    all_classes = np.unique(y_train).tolist()
+    for cls in all_classes:
+        idx_cls = np.where(y_train == cls)[0]
+        # print(idx_cls[0:10])
+        #     dgs_cls = extract_dgs_by_ids(relevances, idx_cls)
+        dgs_cls = compute_fx(X_train[idx_cls, :])
+        dg_collections_list.append(dgs_cls)
+    return dg_collections_list
+
+
+def dginn_local_importance(model,X,ys,Relevance_Computer=Activations_Computer,cls=None):
+
+    # Get DG collection for every class, for every point
+    dg_collections_list = dginn_global_importance_(model, X, ys, Relevance_Computer=Relevance_Computer)
+
+    # Extract feature importance for both classes.
+    f_nb_0 = dg_collections_list[0][model.layers[0]]
+    f_nb_1 = dg_collections_list[1][model.layers[0]]
+    print("dg_collections_list::Same class importance:", np.array_equal(f_nb_0, f_nb_1))
+
+    if cls is None:
+        f_nb_list = []
+        for i in range(len(dg_collections_list)):
+            f_nb_list.append(dg_collections_list[i][model.layers[0]])
+        return np.mean(f_nb_list, axis=0)
+    else:
+        return dg_collections_list[cls][model.layers[0]]
+
+
 
 
 # VISUALISATION FXS
