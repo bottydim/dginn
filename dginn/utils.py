@@ -66,5 +66,5 @@ def make_dir(path):
         else:
             print("Successfully created the directory %s " % path)
 
-FIG_FOLDER = Path(os.path.dirname(os.path.abspath("__file__"))).parents[0] / "dginn/figures/"
-make_dir(FIG_FOLDER)
+# FIG_FOLDER = Path(os.path.dirname(os.path.abspath("__file__"))).parents[0] / "dginn/figures/"
+# make_dir(FIG_FOLDER)

@@ -6,9 +6,12 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
+import inspect
 
-current_path = current_path = os.path.realpath('__file__')
-dataset_path = os.path.join(os.path.dirname(current_path), "data")
+current_path = os.path.realpath(inspect.getfile(inspect.currentframe()))
+print(current_path)
+parent_dir = os.path.dirname(current_path)
+dataset_path = os.path.join(os.path.dirname(parent_dir), "data")
 #### ADD Dataset TODO
 # 1.
 # get_fx

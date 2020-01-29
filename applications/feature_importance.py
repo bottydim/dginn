@@ -51,8 +51,13 @@ def dginn_local_importance_(model, X, ys, Relevance_Computer=Activations_Compute
     :param Relevance_Computer:
     :return:
     '''
-    X_train = X
-    y_train = ys
+
+    if type(X) is not np.ndarray:
+        X_train = X.numpy()
+        y_train = ys.numpy()
+    else:
+        X_train = X
+        y_train = ys
     computer = Relevance_Computer
     compute_fx = computer(model=model, agg_data_points=False)
     dg_collections_list = []
@@ -83,7 +88,7 @@ def dginn_local_importance(model,X,ys,Relevance_Computer=Activations_Computer,se
     for cls in selected_classes:
         f_nb_list.append(dg_collections_list[cls][model.layers[0]])
 
-    return f_nb_list
+    return np.concatenate(f_nb_list,axis=0)
 
 
 
