@@ -15,11 +15,9 @@ config.gpu_options.allow_growth = True
 
 sess = tf.Session(config=config)
 
-
 '''
 Implementation of dep. graphs, as outlined in Algorithm X in paper Y
 '''
-
 
 
 class Relevance_Computer(ABC):
@@ -72,13 +70,7 @@ class Relevance_Computer(ABC):
         '''
 
 
-
-
-
-
-
 class Weights_Computer(Relevance_Computer):
-
     """
     Score: weight of the edge between the neurones
     """
@@ -95,7 +87,6 @@ class Weights_Computer(Relevance_Computer):
         agg_data_points = True
 
         super().__init__(model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose)
-
 
     def __call__(self, data):
 
@@ -136,15 +127,12 @@ class Weights_Computer(Relevance_Computer):
                 score_val = np.mean(score_val, axis=-1)
 
             vprint("\tomega_val.shape:{}".format(score_val.shape), verbose=verbose)
-            omega_val[l] = np.expand_dims(score_val,axis=0)
+            omega_val[l] = np.expand_dims(score_val, axis=0)
 
         return omega_val
 
 
-
-
 class Activations_Computer(Relevance_Computer):
-
     """
     Score: activations of the layer -- output of neurons
     """
@@ -207,9 +195,7 @@ class Activations_Computer(Relevance_Computer):
         return omega_val
 
 
-
 class Gradients_Computer(Relevance_Computer):
-
     """
     Score: gradient model loss wrt to the weight
     """
@@ -242,103 +228,97 @@ class Gradients_Computer(Relevance_Computer):
                 omega_val[l] = np.array([])
                 continue
 
-            # 1. compute values
-            model_k = tf.keras.Model(inputs=model.inputs, outputs=[l.output])
-            # last layer of the new model
-            inter_l = model_k.layers[-1]
-
-            # NB!
-            # make sure to compute gradient correctly for the last layer by changing the activation fx
-            # obtain the logits of the model, instead of softmax output
-            if l == model.layers[-1]:
-                activation_temp = l.activation
-                if l.activation != tf.keras.activations.linear:
-                    l.activation = tf.keras.activations.linear
-
-            # intitialise score values
-            score_val = np.zeros(inter_l.weights[0].shape)
-
-            data_len = self.count_number_points(data)
-
-            # TODO: check how we handle multi-input data?!
-            # TODO: fix strange layer name change : vs _
-            input_names = [l.name.split(":")[0] for l in model.inputs]
-            # Note: line not tested
-            input_names = [l.split("_")[0] for l in input_names]
-
-            # split the data into batches
-            for i in range(0, data_len, batch_size):
-                # TODO: experiment with speed if with device(cpu:0)
-                with tf.GradientTape() as t:
-                    # t.gradient requires tensor => convert numpy array to tensor
-                    # c.f. that for activations we use model.predict
-                    if type(data) is dict:
-                        tensor = []
-
-                        # if multi-input, create a list of tensors per input
-                        for k in input_names:
-                            tensor.append(data[k][i:min(i + batch_size, data_len)].astype('float32'))
-                    else:
-                        tensor = tf.convert_to_tensor(data[i:min(i + batch_size, data_len)], dtype=tf.float32)
-
-                    # Compute gradient of loss wrt to weights for current batch
-                    current_loss = loss_(model_k(tensor))
-                    dW, _ = t.gradient(current_loss, [*inter_l.weights])
-
-                score_val += fx_modulate(dW)
-
-            # restor output activation
-            if l == model.layers[-1]:
-                l.activation = activation_temp
-
-            vprint("layer:{}--{}".format(l.name, score_val.shape), verbose=verbose)
-            # 2 aggragate across locations
-            # 2.1 4D
-            if len(score_val.shape) > 3:
-                # (3, 3, 3, 64) -> here aggregated across data-points already
-                # so need to average over axes (0, 1) vs (1, 2)
-                score_val = np.mean(score_val, axis=(0, 1))
-                vprint("\t 4D shape:{}".format(score_val.shape), verbose=verbose)
-            elif len(score_val.shape) > 2:
-                score_val = np.mean(score_val, axis=(0))
-                vprint("\t 3D shape:{}".format(score_val.shape), verbose=verbose)
-
-            # TODO: Explore how to not aggregate accross data points
-            '''
-            to include data point analysis, we can use persistant gradient_tape
-            compute point by point or use the loss
-            explore this issue for efficiency gain https://github.com/tensorflow/tensorflow/issues/4897
-            '''
-
-            # 4. tokenize values
-            mean = np.mean(score_val, axis=1)
-            # omega_val[l] = mean
+            mean = gradients(data, l, model, batch_size, fx_modulate, loss_, verbose)
 
             # TODO: return to previous line, once data point aggregation is fixed
+            # omega_val[l] = mean
             omega_val[l] = np.expand_dims(mean, axis=0)
 
             vprint("\t omega_val.shape:{}".format(mean.shape), verbose=verbose)
         return omega_val
 
 
-    def count_number_points(self, data):
-        """
-        :param data: input data. Could be a numpy array, or could be a dictionary of
-                     {layer_name : numpy array} in case of multi-input data
-        :return:
-        """
-        # handle multi-input data
-        if type(data) is dict:
-            key = list(data.keys())[0]
-            data_len = data[key].shape[0]
-        else:
-            data_len = data.shape[0]
-        return data_len
+def gradients(data, l, model, batch_size, fx_modulate, loss_, verbose):
+    # 1. compute values
+    model_k = tf.keras.Model(inputs=model.inputs, outputs=[l.output])
+    # last layer of the new model
+    inter_l = model_k.layers[-1]
+    # NB!
+    # make sure to compute gradient correctly for the last layer by changing the activation fx
+    # obtain the logits of the model, instead of softmax output
+    if l == model.layers[-1]:
+        activation_temp = l.activation
+        if l.activation != tf.keras.activations.linear:
+            l.activation = tf.keras.activations.linear
+    # intitialise score values
+    score_val = np.zeros(inter_l.weights[0].shape)
+    data_len = count_number_points(data)
+    # TODO: check how we handle multi-input data?!
+    # TODO: fix strange layer name change : vs _
+    input_names = [l.name.split(":")[0] for l in model.inputs]
+    # Note: line not tested
+    input_names = [l.split("_")[0] for l in input_names]
+    # split the data into batches
+    for i in range(0, data_len, batch_size):
+        # TODO: experiment with speed if with device(cpu:0)
+        with tf.GradientTape() as t:
+            # t.gradient requires tensor => convert numpy array to tensor
+            # c.f. that for activations we use model.predict
+            if type(data) is dict:
+                tensor = []
 
+                # if multi-input, create a list of tensors per input
+                for k in input_names:
+                    tensor.append(data[k][i:min(i + batch_size, data_len)].astype('float32'))
+            else:
+                tensor = tf.convert_to_tensor(data[i:min(i + batch_size, data_len)], dtype=tf.float32)
+
+            # Compute gradient of loss wrt to weights for current batch
+            current_loss = loss_(model_k(tensor))
+            dW, _ = t.gradient(current_loss, [*inter_l.weights])
+
+        score_val += fx_modulate(dW)
+    # restor output activation
+    if l == model.layers[-1]:
+        l.activation = activation_temp
+    vprint("layer:{}--{}".format(l.name, score_val.shape), verbose=verbose)
+    # 2 aggragate across locations
+    # 2.1 4D
+    if len(score_val.shape) > 3:
+        # (3, 3, 3, 64) -> here aggregated across data-points already
+        # so need to average over axes (0, 1) vs (1, 2)
+        score_val = np.mean(score_val, axis=(0, 1))
+        vprint("\t 4D shape:{}".format(score_val.shape), verbose=verbose)
+    elif len(score_val.shape) > 2:
+        score_val = np.mean(score_val, axis=(0))
+        vprint("\t 3D shape:{}".format(score_val.shape), verbose=verbose)
+    # TODO: Explore how to not aggregate accross data points
+    '''
+                to include data point analysis, we can use persistant gradient_tape
+                compute point by point or use the loss
+                explore this issue for efficiency gain https://github.com/tensorflow/tensorflow/issues/4897
+                '''
+    # 4. tokenize values
+    mean = np.mean(score_val, axis=1)
+    return mean
+
+
+def count_number_points(data):
+    """
+    :param data: input data. Could be a numpy array, or could be a dictionary of
+                 {layer_name : numpy array} in case of multi-input data
+    :return:
+    """
+    # handle multi-input data
+    if type(data) is dict:
+        key = list(data.keys())[0]
+        data_len = data[key].shape[0]
+    else:
+        data_len = data.shape[0]
+    return data_len
 
 
 class Weight_Activations_Computer(Relevance_Computer):
-
     """
     Score: activation score * weight score
     """
@@ -362,46 +342,92 @@ class Weight_Activations_Computer(Relevance_Computer):
             if l.weights == []:
                 omega_val[l] = np.array([])
                 continue
+            relevance_val = weight_activations_compute(data, fx_modulate, l, model, verbose)
+            omega_val[l] = np.expand_dims(relevance_val, axis=0)
+        return omega_val
 
-            # 1. compute values
-            # 1.1 compute activations of current layer
-            model_k = tf.keras.Model(inputs=model.inputs, outputs=[l.input])
-            score_val_a = model_k.predict(data)
-            score_val_a = fx_modulate(score_val_a)
 
-            # 1.2 get weights of current layer
-            score_val_w = l.weights[0][:]
-            score_val_w = fx_modulate(score_val_w)
+def weight_activations_compute(data, fx_modulate, l, model, verbose):
+    # 1. compute values
+    # 1.1 compute activations of current layer
+    model_k = tf.keras.Model(inputs=model.inputs, outputs=[l.input])
+    score_val_a = model_k.predict(data)
+    score_val_a = fx_modulate(score_val_a)
+    # 1.2 get weights of current layer
+    score_val_w = l.weights[0][:]
+    score_val_w = fx_modulate(score_val_w)
+    # 2 aggragate across locations
+    # 2.1 Aggregate Across Activations
+    # 2.1.1 aggregate across 4D
+    if len(score_val_a.shape) > 3:
+        score_val_a = np.mean(score_val_a, axis=(1, 2))
+        vprint("\t 4D shape:{}".format(score_val_a.shape), verbose=verbose)
+    # 2.1.2 aggregate across 3D(1D-input)
+    elif len(score_val_a.shape) > 2:
+        score_val_a = np.mean(score_val_a, axis=(1))
+        vprint("\t 3D shape:{}".format(score_val_a.shape), verbose=verbose)
+    # 2.2.1 aggragate across locations (WEIGHTS)
+    if len(score_val_w.shape) > 3:
+        vprint("\tshape:{}", verbose=verbose)
+        vprint("\tscore_val.shape:{}".format(score_val_w.shape), verbose=verbose)
+        score_val_w = np.mean(score_val_w, axis=(0, 1))
+    elif len(score_val_w.shape) > 2:
+        score_val_w = np.mean(score_val_w, axis=(0))
+    # 3. aggregate activation across datapoints (Step II.)
+    score_agg_a = np.mean(score_val_a, axis=0)
+    # ===redundant for weights
+    # 4. tokenize values (Step III.)
+    # ===redundant for activations
+    score_agg_w = np.mean(score_val_w, axis=-1)
+    relevance_val = score_agg_a * score_agg_w
+    return relevance_val
 
-            # 2 aggragate across locations
 
-            # 2.1 Aggregate Across Activations
-            # 2.1.1 aggregate across 4D
-            if len(score_val_a.shape) > 3:
-                score_val_a = np.mean(score_val_a, axis=(1, 2))
-                vprint("\t 4D shape:{}".format(score_val_a.shape), verbose=verbose)
-            # 2.1.2 aggregate across 3D(1D-input)
-            elif len(score_val_a.shape) > 2:
-                score_val_a = np.mean(score_val_a, axis=(1))
-                vprint("\t 3D shape:{}".format(score_val_a.shape), verbose=verbose)
 
-            # 2.2.1 aggragate across locations (WEIGHTS)
-            if len(score_val_w.shape) > 3:
-                vprint("\tshape:{}", verbose=verbose)
-                vprint("\tscore_val.shape:{}".format(score_val_w.shape), verbose=verbose)
-                score_val_w = np.mean(score_val_w, axis=(0, 1))
-            elif len(score_val_w.shape) > 2:
-                score_val_w = np.mean(score_val_w, axis=(0))
+class DGINN
 
-            # 3. aggregate activation across datapoints
-            score_agg_a = np.mean(score_val_a, axis=0)
 
-            # ===redundant for weights
-            # 4. tokenize values
-            # ===redundant for activations
-            score_agg_w = np.mean(score_val_w, axis=-1)
-            omega_val[l] = score_agg_a * score_agg_w
-            omega_val[l] = np.expand_dims(omega_val[l] , axis=0)
+
+
+class DGINN():
+    relevant_neurons = {}
+
+    def __init__(self):
+        pass
+
+    def compute(self, xs,ys):
+
+        model = self.model
+        layer_start = self.layer_start
+        compute_fx = self.compute_fx()
+        # variable that stores all other kwargs could be passed as a partial function @ class creation
+        compute_params = self.compute_params
+        verbose = self.verbose
+        omega_val = {}
+
+
+        # TODO NOTICE THIS IS THE GREATEST BLOCKER since we will start getting neurons compute one @ time
+        # this was the problem in v0.1
+        relevant_neurons = ys
+        # loop over layers
+        for l in model.layers[layer_start:]:
+            # skips layers w/o weights
+            # e.g. input/pooling
+            if l.weights == []:
+                omega_val[l] = np.array([])
+                continue
+            # Paper Steps I.,II.,III.
+            #compute layer relevance values
+            relevance_values = compute_fx(data, l, model,relevant_neurons, **compute_params)
+
+            # Paper Step IV.
+
+
+            # TODO: return to previous line, once data point aggregation is fixed
+            # omega_val[l] = mean
+            omega_val[l] = np.expand_dims(relevance_values, axis=0)
+
+            vprint("\t omega_val.shape:{}".format(relevance_values.shape), verbose=verbose)
         return omega_val
 
 
