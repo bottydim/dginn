@@ -75,18 +75,6 @@ def main():
     fig.show()
 
 
-def generate_attribution_list(models, inputs, z_idx, ys=None, attribution_methods=attribution_methods):
-    attribution_list = defaultdict(list)
-    models_str = ["Original", "Modified"]
-    for model in models:
-        model.activation = tf.keras.activations.linear
-    for j, attribution in enumerate(attribution_methods):
-        for i, m in enumerate(models):
-            g_ = attribution(m, inputs, ys=ys)
-            attribution_list[models_str[i]].append(g_)
-    for model in models:
-        model.activation = tf.keras.activations.softmax
-    return attribution_list
 
 
 if __name__ == '__main__':
