@@ -384,12 +384,24 @@ def weight_activations_compute(data, fx_modulate, l, model, verbose):
 
 
 
-class DGINN
-
-
-
-
 class DGINN():
+    relevant_neurons = {}
+    omega_vals = {}
+
+
+    def __init__(self,RelevanceComputer):
+        X_train = X
+        y_train = ys
+        computer = Relevance_Computer
+
+
+    def compute(self, xs, ys):
+        model = self.model
+        layer_start = self.layer_start
+        compute_fx = self.compute_fx()
+        dg_collections_list = compute_omega_vals(xs, ys, model, computer, agg_data_points=True)
+
+class DGINN_1():
     relevant_neurons = {}
 
     def __init__(self):

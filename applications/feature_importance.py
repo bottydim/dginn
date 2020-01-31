@@ -1,6 +1,7 @@
 from matplotlib import pyplot as plt
 
 from aggregator_utils import *
+from core import compute_omega_vals
 from dginn.core import *
 
 
@@ -8,15 +9,7 @@ def dginn_global_importance_(model, X, ys, Relevance_Computer=Activations_Comput
     X_train = X
     y_train = ys
     computer = Relevance_Computer
-    compute_fx = computer(model=model, agg_data_points=True)
-    dg_collections_list = []
-    all_classes = np.unique(y_train).tolist()
-    for cls in all_classes:
-        idx_cls = np.where(y_train == cls)[0]
-        # print(idx_cls[0:10])
-        #     dgs_cls = extract_dgs_by_ids(relevances, idx_cls)
-        dgs_cls = compute_fx(X_train[idx_cls, :])
-        dg_collections_list.append(dgs_cls)
+    dg_collections_list = compute_omega_vals(X_train, y_train, model, computer, agg_data_points=True)
     return dg_collections_list
 
 
@@ -59,15 +52,7 @@ def dginn_local_importance_(model, X, ys, Relevance_Computer=Activations_Compute
         X_train = X
         y_train = ys
     computer = Relevance_Computer
-    compute_fx = computer(model=model, agg_data_points=False)
-    dg_collections_list = []
-    all_classes = np.unique(y_train).tolist()
-    for cls in all_classes:
-        idx_cls = np.where(y_train == cls)[0]
-        # print(idx_cls[0:10])
-        #     dgs_cls = extract_dgs_by_ids(relevances, idx_cls)
-        dgs_cls = compute_fx(X_train[idx_cls, :])
-        dg_collections_list.append(dgs_cls)
+    dg_collections_list = compute_omega_vals(X_train, y_train, model, computer, agg_data_points=False)
     return dg_collections_list
 
 
