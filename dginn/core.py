@@ -35,7 +35,7 @@ class Relevance_Computer(ABC):
 
         :param fx_modulate: function applied to neuron scores during neuron importance computation.
                             Example (1) : if we want "attribution" (is the feature positively or negatively contributing)
-                                     then can simply use identify function.
+                                     then can simply use the identity function.
                             Example (2) : if we want notion of overall importance, can take absolute score value
                                           using the abs function
 
@@ -43,10 +43,10 @@ class Relevance_Computer(ABC):
                             up to the output layer. Can be useful for skipping initial pre-processing layers of a model
 
         :param agg_data_points: used with the __call__ method. Determines whether to create a single DG aggregated
-                                accross input data points, or to create a DG per data point
+                                across input data points, or to create a DG per data point
 
-        :param agg_neurons: used with the __call__method. Determines whether to compute importances of neurones in layer
-                            L with respect to each neuron of layer (L+1), or to aggregate accross all neurons of layer
+        :param agg_neurons: used with the __call__ method. Determines whether to compute importances of neurones in layer
+                            L with respect to each neuron of layer (L+1), or to aggregate across all neurons of layer
                             (L+1)
 
         :param verbose: print intermediate computation results
@@ -103,13 +103,15 @@ class Weights_Computer(Relevance_Computer):
                 vprint(l.name, verbose=verbose)
                 omega_val[l] = np.array([])
                 continue
+
             vprint("layer:{}".format(l.name), verbose=verbose)
+
             # 1. compute values: copy weights, and apply modulation function
             vprint("w.shape:{}".format(l.weights[0].shape), verbose=verbose)
             score_val = l.weights[0][:, :]
             score_val = fx_modulate(score_val)
 
-            # 2 aggragate across locations
+            # 2 aggregate across locations
             # if convolutional - check if convolutional using the shape
             # 2.1 4D input (c.f. images)
             if len(score_val.shape) > 3:
@@ -155,7 +157,7 @@ class Activations_Computer(Relevance_Computer):
         for l in model.layers[layer_start:]:
             vprint("layer:{}".format(l.name), verbose=verbose)
 
-            # If layer is Concatenate, concetenates the input
+            # If layer is Concatenate, concatenates the input
             if type(l) is tf.keras.layers.Concatenate:
                 output = tf.keras.layers.concatenate(l.input)
             else:
@@ -278,7 +280,7 @@ def gradients(data, l, model, batch_size, fx_modulate, loss_, verbose):
             dW, _ = t.gradient(current_loss, [*inter_l.weights])
 
         score_val += fx_modulate(dW)
-    # restor output activation
+    # restore output activation
     if l == model.layers[-1]:
         l.activation = activation_temp
     vprint("layer:{}--{}".format(l.name, score_val.shape), verbose=verbose)
@@ -382,6 +384,62 @@ def weight_activations_compute(data, fx_modulate, l, model, verbose):
     relevance_val = score_agg_a * score_agg_w
     return relevance_val
 
+
+
+class DepGraph():
+    '''
+    Dependency Graph class
+    '''
+
+    def __init__(self, RelevanceComputer):
+        self.computer = Relevance_Computer
+        self.model = Relevance_Computer.model
+        self.layer_start = Relevance_Computer.layer_start
+
+
+
+    def compute(self, data):
+        '''
+        Compute function, used for computing the dep. graph(s) from the input data
+        :param data:
+        :return:
+        '''
+
+        '''
+        Note: the only way it makes sense, is if we filter as follows:
+            - For neurones in layer L
+            - If neurone is not connected to any important layer in L+1, filter it out
+            - Otherwise, consider the score of that neurone 
+        '''
+
+
+        dg_collections_list = compute_omega_vals(xs, ys, model, computer, agg_data_points=True)
+
+
+
+    def compute1(self, xs, ys):
+        '''
+        This implementation computes all relevance values first, and then filters then based
+        on successive layers
+        :param xs:
+        :param ys:
+        :return:
+        '''
+
+        pass
+
+
+    # TODO: discuss if we need this. If we do, we'll need to re-implement the 4 methods to work on a layer basis.
+    # TODO: actually, this is not too much effort. Since computation is done on a layer-by-layer basis anyway for every computer.
+    def compute2(self, xs, ys):
+        '''
+        This implementation interleaves computation and filtering of layers.
+        Layer L is computed only after layer L+1 is computed and filtered
+        :param xs:
+        :param ys:
+        :return:
+        '''
+        pass
 
 
 class DGINN():
