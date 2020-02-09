@@ -40,7 +40,7 @@ def dep_graph_test():
 
     model = build_model((n_features,), 2)
 
-    model.fit(x_train, y_train, epochs=200, verbose=True)
+    model.fit(x_train, y_train, epochs=20, verbose=True)
 
     loss = lambda x: x # Use the identify for neuron preprocessing
     agg_data_points = False
@@ -51,6 +51,8 @@ def dep_graph_test():
                                        agg_neurons=agg_neurons)
 
     dep_graph = DepGraph(grad_computer)
+
+    dgs = dep_graph.compute(x_train)
 
 
 dep_graph_test()

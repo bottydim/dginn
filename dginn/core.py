@@ -296,10 +296,10 @@ def gradients(data, l, model, batch_size, fx_modulate, loss_, verbose):
         vprint("\t 3D shape:{}".format(score_val.shape), verbose=verbose)
     # TODO: Explore how to not aggregate accross data points
     '''
-                to include data point analysis, we can use persistant gradient_tape
-                compute point by point or use the loss
-                explore this issue for efficiency gain https://github.com/tensorflow/tensorflow/issues/4897
-                '''
+    to include data point analysis, we can use persistant gradient_tape
+    compute point by point or use the loss
+    explore this issue for efficiency gain https://github.com/tensorflow/tensorflow/issues/4897
+    '''
     # 4. tokenize values
     mean = np.mean(score_val, axis=1)
     return mean
@@ -386,16 +386,15 @@ def weight_activations_compute(data, fx_modulate, l, model, verbose):
 
 
 
-class DepGraph():
+class DepGraph:
     '''
     Dependency Graph class
     '''
 
     def __init__(self, RelevanceComputer):
-        self.computer = Relevance_Computer
-        self.model = Relevance_Computer.model
-        self.layer_start = Relevance_Computer.layer_start
-
+        self.computer = RelevanceComputer
+        self.model = RelevanceComputer.model
+        self.layer_start = RelevanceComputer.layer_start
 
 
     def compute(self, data):
@@ -412,8 +411,25 @@ class DepGraph():
             - Otherwise, consider the score of that neurone 
         '''
 
+        # Retrieve unfiltered gradient values
+        all_layer_gradient_vals = self.computer(data)
 
-        dg_collections_list = compute_omega_vals(xs, ys, model, computer, agg_data_points=True)
+        # Initialise neurone values
+        filtered_neurones = {}
+        filtered_neurones[self.model.layers[-1]] = ... # TODO: decide how to initialise this. Probably: using output classification neuron
+
+        next_layer_neurones = filtered_neurones[self.model.layers[-1]]
+
+        # Iterate over layers, output-to-input
+        for i in range(len(self.model.layers) - 1, -1, -1):
+
+            layer = self.model.layers[i]
+            grad_vals = all_layer_gradient_vals[layer]
+
+            curr_layer_vals = grad_vals[:, next_layer_neurones]
+
+
+
 
 
 
