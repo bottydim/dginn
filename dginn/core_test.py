@@ -1,5 +1,8 @@
+if __name__ == '__main__':
+    import tensorflow as tf
+    tf.enable_eager_execution()
+
 import numpy as np
-import tensorflow as tf
 from dginn.dginn.core import *
 
 
@@ -29,7 +32,7 @@ def build_model(input_shape=(14,), num_class=2):
 
 
 
-def dep_graph_test():
+def main():
 
     n_samples = 50
     n_features = 10
@@ -42,7 +45,7 @@ def dep_graph_test():
 
     model.fit(x_train, y_train, epochs=20, verbose=True)
 
-    loss = lambda x: x # Use the identify for neuron preprocessing
+    loss = lambda x: x # Use the identity for neuron preprocessing
     agg_data_points = False
     agg_neurons = False
 
@@ -55,6 +58,7 @@ def dep_graph_test():
     dgs = dep_graph.compute(x_train)
 
 
-dep_graph_test()
+if __name__ == '__main__':
+    main()
 
 
