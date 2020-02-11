@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras.models import Sequential
 
 from dginn.utils import *
 
@@ -223,21 +224,127 @@ class Gradients_Computer(Relevance_Computer):
         batch_size = self.batch_size
         omega_val = {}
 
-        for l in model.layers[layer_start:]:
+        if layer_start is None:
+            layer_start = 0
+
+        last_layer = model.layers[-1]
+        omega_val[last_layer] = ... # TODO: initialise this suitably (probably using activated output neurones)
+
+        n_layers = len(model.layers)
+
+        for i in range(n_layers-1, layer_start, -1):
+
+            cur_layer  =  model.layers[i-1]
+            next_layer = model.layers[i]
+
             # skips layers w/o weights
             # e.g. input/pooling
-            if l.weights == []:
-                omega_val[l] = np.array([])
+            if cur_layer.weights == []:
+                omega_val[cur_layer] = np.array([])
                 continue
 
-            mean = gradients(data, l, model, batch_size, fx_modulate, loss_, verbose)
+            mean = new_gradients(data, cur_layer, next_layer, model, batch_size, fx_modulate, loss_, verbose)
 
             # TODO: return to previous line, once data point aggregation is fixed
             # omega_val[l] = mean
-            omega_val[l] = np.expand_dims(mean, axis=0)
+            omega_val[cur_layer] = np.expand_dims(mean, axis=0)
 
             vprint("\t omega_val.shape:{}".format(mean.shape), verbose=verbose)
         return omega_val
+
+
+        # TODO: think about removing this, or moving to a separate function
+        # Old code version:
+        # for l in model.layers[layer_start:]:
+        #     # skips layers w/o weights
+        #     # e.g. input/pooling
+        #     if l.weights == []:
+        #         omega_val[l] = np.array([])
+        #         continue
+        #
+        #     mean = gradients(data, l, model, batch_size, fx_modulate, loss_, verbose)
+        #
+        #     # TODO: return to previous line, once data point aggregation is fixed
+        #     # omega_val[l] = mean
+        #     omega_val[l] = np.expand_dims(mean, axis=0)
+        #
+        #     vprint("\t omega_val.shape:{}".format(mean.shape), verbose=verbose)
+        # return omega_val
+
+
+# TODO: decide whether to remove other "gradients" method, or rename, or...
+def new_gradients(data, cur_layer, next_layer, model, batch_size, fx_modulate, loss_, verbose):
+
+    # Compute gradient correctly for the last layer by changing the activation fx
+    # obtain the logits of the model, instead of softmax output
+    if next_layer == model.layers[-1]:
+        activation_temp = next_layer.activation
+        next_layer.activation = tf.keras.activations.linear
+
+    model_cur = tf.keras.Model(inputs=model.inputs, outputs=[cur_layer.output])
+
+    # TODO: think if this generalises to other model types
+    model_next = Sequential()
+    model_next.add(next_layer)
+
+    data_len = count_number_points(data)
+    score_val = None
+
+    # TODO: check how we handle multi-input data?!
+    # TODO: fix strange layer name change : vs _
+    input_names = [l.name.split(":")[0] for l in model.inputs]
+    # Note: line not tested
+    input_names = [l.split("_")[0] for l in input_names]
+
+    # TODO: experiment with speed if with device(cpu:0)
+    for i in range(0, data_len, batch_size):
+
+        if type(data) is dict:
+            tensor = []
+            # if multi-input, create a list of tensors per input
+            for k in input_names:
+                tensor.append(data[k][i:min(i + batch_size, data_len)].astype('float32'))
+        else:
+            tensor = tf.convert_to_tensor(data[i:min(i + batch_size, data_len)], dtype=tf.float32)
+
+        curr_activations = tf.Variable(loss_(model_cur(tensor)))
+
+        # TODO: apply fx_modulate to tensors as well
+        with tf.GradientTape() as t:
+            next_activations = loss_(model_next(curr_activations))
+
+        dA = t.gradient(next_activations, curr_activations)
+
+        if score_val is None: score_val = fx_modulate(dA)
+        else: score_val += fx_modulate(dA)
+
+    # restore output activation
+    if next_layer == model.layers[-1]:
+        next_layer.activation = activation_temp
+    vprint("layer:{}--{}".format(next_layer.name, score_val.shape), verbose=verbose)
+
+    # TODO: does this still make sense in our new scenario, with differentiation with respect to activations?
+    # 2 aggragate across locations
+    # 2.1 4D
+    if len(score_val.shape) > 3:
+        # (3, 3, 3, 64) -> here aggregated across data-points already
+        # so need to average over axes (0, 1) vs (1, 2)
+        score_val = np.mean(score_val, axis=(0, 1))
+        vprint("\t 4D shape:{}".format(score_val.shape), verbose=verbose)
+    elif len(score_val.shape) > 2:
+        score_val = np.mean(score_val, axis=(0))
+        vprint("\t 3D shape:{}".format(score_val.shape), verbose=verbose)
+    # TODO: Explore how to not aggregate accross data points
+    '''
+    to include data point analysis, we can use persistant gradient_tape
+    compute point by point or use the loss
+    explore this issue for efficiency gain https://github.com/tensorflow/tensorflow/issues/4897
+    '''
+    # 4. tokenize values
+    mean = np.mean(score_val, axis=1)
+    return mean
+
+
 
 
 def gradients(data, l, model, batch_size, fx_modulate, loss_, verbose):
@@ -383,6 +490,11 @@ def weight_activations_compute(data, fx_modulate, l, model, verbose):
     score_agg_w = np.mean(score_val_w, axis=-1)
     relevance_val = score_agg_a * score_agg_w
     return relevance_val
+
+
+
+
+
 
 
 
