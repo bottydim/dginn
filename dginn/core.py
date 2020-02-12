@@ -243,7 +243,7 @@ class Gradients_Computer(Relevance_Computer):
                 omega_val[cur_layer] = np.array([])
                 continue
 
-            omega_val[cur_layer] = new_gradients(data, cur_layer, next_layer, model, batch_size, fx_modulate, loss_, verbose)
+            omega_val[cur_layer] = new_gradients(data, cur_layer, next_layer, model, fx_modulate, loss_, verbose)
             vprint("\t omega_val.shape:{}".format(omega_val[cur_layer].shape), verbose=verbose)
 
         return omega_val
@@ -269,7 +269,7 @@ class Gradients_Computer(Relevance_Computer):
 
 
 # TODO: decide whether to remove other "gradients" method, or rename, or...
-def new_gradients(data, cur_layer, next_layer, model, batch_size, fx_modulate, loss_, verbose):
+def new_gradients(data, cur_layer, next_layer, model, fx_modulate, loss_, verbose):
 
     # Compute gradient correctly for the last layer by changing the activation fx
     # obtain the logits of the model, instead of softmax output
@@ -284,8 +284,6 @@ def new_gradients(data, cur_layer, next_layer, model, batch_size, fx_modulate, l
     # Create sub-model consisting of the next layer only
     model_next = Sequential()
     model_next.add(next_layer)
-
-    data_len = count_number_points(data)
 
     # TODO: check how we handle multi-input data?!
     # TODO: fix strange layer name change : vs _
@@ -540,7 +538,7 @@ class DepGraph:
 
         # Initialise neuron values
         filtered_neurones = {}
-        filtered_neurones[self.model.layers[-1]] = ... # TODO: decide how to initialise this. Probably: using output classification neuron
+        filtered_neurones[self.model.layers[-1]] = ... # TODO: decide how to initialise this. Probably: using output classification neurons
 
         # TODO: this is a tmp fix, creating a random T/F matrix for the output layer
         shape = self.model.layers[-1].output_shape
@@ -567,12 +565,6 @@ class DepGraph:
 
 
 
-
-
-
-
-
-
     def compute1(self, xs, ys):
         '''
         This implementation computes all relevance values first, and then filters then based
@@ -596,6 +588,9 @@ class DepGraph:
         :return:
         '''
         pass
+
+
+
 
 
 class DGINN():
