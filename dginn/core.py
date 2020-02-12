@@ -243,13 +243,9 @@ class Gradients_Computer(Relevance_Computer):
                 omega_val[cur_layer] = np.array([])
                 continue
 
-            mean = new_gradients(data, cur_layer, next_layer, model, batch_size, fx_modulate, loss_, verbose)
+            omega_val[cur_layer] = new_gradients(data, cur_layer, next_layer, model, batch_size, fx_modulate, loss_, verbose)
 
-            # TODO: return to previous line, once data point aggregation is fixed
-            # omega_val[l] = mean
-            omega_val[cur_layer] = np.expand_dims(mean, axis=0)
-
-            vprint("\t omega_val.shape:{}".format(mean.shape), verbose=verbose)
+            vprint("\t omega_val.shape:{}".format(omega_val[cur_layer].shape), verbose=verbose)
         return omega_val
 
 
@@ -309,11 +305,14 @@ def new_gradients(data, cur_layer, next_layer, model, batch_size, fx_modulate, l
 
         curr_activations = tf.Variable(loss_(model_cur(tensor)))
 
-        # TODO: apply fx_modulate to tensors as well
         with tf.GradientTape() as t:
             next_activations = loss_(model_next(curr_activations))
 
-        dA = t.gradient(next_activations, curr_activations)
+
+        # Expected next_activations shape: [b, y]
+        # Expected curr_activations shape: [b, x]
+        # Gradient output shape: [b, y, x]
+        dA = t.batch_jacobian(next_activations, curr_activations)
 
         if score_val is None: score_val = fx_modulate(dA)
         else: score_val += fx_modulate(dA)
@@ -324,27 +323,28 @@ def new_gradients(data, cur_layer, next_layer, model, batch_size, fx_modulate, l
     vprint("layer:{}--{}".format(next_layer.name, score_val.shape), verbose=verbose)
 
     # TODO: does this still make sense in our new scenario, with differentiation with respect to activations?
-    # 2 aggragate across locations
-    # 2.1 4D
-    if len(score_val.shape) > 3:
-        # (3, 3, 3, 64) -> here aggregated across data-points already
-        # so need to average over axes (0, 1) vs (1, 2)
-        score_val = np.mean(score_val, axis=(0, 1))
-        vprint("\t 4D shape:{}".format(score_val.shape), verbose=verbose)
-    elif len(score_val.shape) > 2:
-        score_val = np.mean(score_val, axis=(0))
-        vprint("\t 3D shape:{}".format(score_val.shape), verbose=verbose)
-    # TODO: Explore how to not aggregate accross data points
-    '''
-    to include data point analysis, we can use persistant gradient_tape
-    compute point by point or use the loss
-    explore this issue for efficiency gain https://github.com/tensorflow/tensorflow/issues/4897
-    '''
-    # 4. tokenize values
-    mean = np.mean(score_val, axis=1)
-    return mean
 
+    # # 2 aggragate across locations
+    # # 2.1 4D
+    # if len(score_val.shape) > 3:
+    #     # (3, 3, 3, 64) -> here aggregated across data-points already
+    #     # so need to average over axes (0, 1) vs (1, 2)
+    #     score_val = np.mean(score_val, axis=(0, 1))
+    #     vprint("\t 4D shape:{}".format(score_val.shape), verbose=verbose)
+    # elif len(score_val.shape) > 2:
+    #     score_val = np.mean(score_val, axis=(0))
+    #     vprint("\t 3D shape:{}".format(score_val.shape), verbose=verbose)
+    # # TODO: Explore how to not aggregate accross data points
+    # '''
+    # to include data point analysis, we can use persistant gradient_tape
+    # compute point by point or use the loss
+    # explore this issue for efficiency gain https://github.com/tensorflow/tensorflow/issues/4897
+    # '''
+    # # 4. tokenize values
+    # mean = np.mean(score_val, axis=1)
+    # return mean
 
+    return score_val
 
 
 def gradients(data, l, model, batch_size, fx_modulate, loss_, verbose):
@@ -509,36 +509,68 @@ class DepGraph:
         self.layer_start = RelevanceComputer.layer_start
 
 
+    def grad_threshold(self, activation_gradients, next_layer_neurones):
+        '''
+        Filter out important neurones, based on important neurones of next layer
+        :param activation_gradients: Matrix of activation gradients of shape [b, (L+1), L], where L
+                                     is the number of neurons in layer L, and (L+1) is the number of neurones
+                                     in layer (L+1)
+        :param next_layer_neurones: Binary tensor indicating important neurones of next layer of shape [b, (L+1)]
+        :return: Binary tensor indicating important neurones for current layer, of shape [b, L]
+        '''
+
+        # Set scores of all entries for non-important next-layer neurones to 0
+        activation_gradients = activation_gradients.numpy()
+        next_layer_neurones = np.expand_dims(next_layer_neurones, axis=-1)
+        masked_scores = np.multiply(next_layer_neurones, activation_gradients)
+
+        # For now, assume the filtering function thresholds on activation value
+        threshold = 0.1
+        thresholded_mask = masked_scores > threshold
+        curr_layer_scores = np.any(thresholded_mask, axis=1)
+
+        return curr_layer_scores
+
+
     def compute(self, data):
         '''
         Compute function, used for computing the dep. graph(s) from the input data
-        :param data:
-        :return:
-        '''
-
-        '''
-        Note: the only way it makes sense, is if we filter as follows:
-            - For neurones in layer L
-            - If neurone is not connected to any important layer in L+1, filter it out
-            - Otherwise, consider the score of that neurone 
+        :param data: input data
+        :return: dependecy graph computed from the input data
         '''
 
         # Retrieve unfiltered gradient values
         all_layer_gradient_vals = self.computer(data)
 
-        # Initialise neurone values
+        # Initialise neuron values
         filtered_neurones = {}
         filtered_neurones[self.model.layers[-1]] = ... # TODO: decide how to initialise this. Probably: using output classification neuron
+
+        # TODO: remove this tmp fix
+        shape = self.model.layers[-1].output_shape
+        shape = list(shape)
+        shape[0] = data.shape[0]                                                # Set the batch dimension to the data-point number
+        all_output_neurones = np.ones(shape)
+        all_output_neurones[:, 0] = 0                                         # For now, set one column to relevant, one to irrelevant
+        filtered_neurones[self.model.layers[-1]] = all_output_neurones
 
         next_layer_neurones = filtered_neurones[self.model.layers[-1]]
 
         # Iterate over layers, output-to-input
-        for i in range(len(self.model.layers) - 1, -1, -1):
+        for i in range(len(self.model.layers) - 2, -1, -1):
 
+            # Retrieve scores of next layer
             layer = self.model.layers[i]
-            grad_vals = all_layer_gradient_vals[layer]
+            grad_vals = all_layer_gradient_vals[layer] # Assume shape is [b, (L+1), L]
 
-            curr_layer_vals = grad_vals[:, next_layer_neurones]
+            # Filter the important neurones for the considered layer
+            next_layer_neurones = self.grad_threshold(grad_vals, next_layer_neurones)
+            filtered_neurones[self.model.layers[i]] = next_layer_neurones
+
+        return filtered_neurones
+
+
+
 
 
 

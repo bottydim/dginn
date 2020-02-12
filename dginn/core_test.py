@@ -57,6 +57,8 @@ def main():
 
     dgs = dep_graph.compute(x_train)
 
+    print("Obtained dependency graphs: ", dgs)
+
 
 if __name__ == '__main__':
     main()
