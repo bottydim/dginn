@@ -49,7 +49,7 @@ def main():
     agg_data_points = False
     agg_neurons = False
 
-    grad_computer = Gradients_Computer(model, loss= loss,
+    grad_computer = Gradients_Computer(model, loss=loss,
                                        agg_data_points=agg_data_points,
                                        agg_neurons=agg_neurons)
 

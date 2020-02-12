@@ -234,7 +234,7 @@ class Gradients_Computer(Relevance_Computer):
 
         for i in range(n_layers-1, layer_start, -1):
 
-            cur_layer  =  model.layers[i-1]
+            cur_layer  = model.layers[i-1]
             next_layer = model.layers[i]
 
             # skips layers w/o weights
@@ -244,8 +244,8 @@ class Gradients_Computer(Relevance_Computer):
                 continue
 
             omega_val[cur_layer] = new_gradients(data, cur_layer, next_layer, model, batch_size, fx_modulate, loss_, verbose)
-
             vprint("\t omega_val.shape:{}".format(omega_val[cur_layer].shape), verbose=verbose)
+
         return omega_val
 
 
@@ -277,14 +277,15 @@ def new_gradients(data, cur_layer, next_layer, model, batch_size, fx_modulate, l
         activation_temp = next_layer.activation
         next_layer.activation = tf.keras.activations.linear
 
+    # Create submodel up to (and including) the current layer
     model_cur = tf.keras.Model(inputs=model.inputs, outputs=[cur_layer.output])
 
     # TODO: think if this generalises to other model types
+    # Create sub-model consisting of the next layer only
     model_next = Sequential()
     model_next.add(next_layer)
 
     data_len = count_number_points(data)
-    score_val = None
 
     # TODO: check how we handle multi-input data?!
     # TODO: fix strange layer name change : vs _
@@ -292,30 +293,26 @@ def new_gradients(data, cur_layer, next_layer, model, batch_size, fx_modulate, l
     # Note: line not tested
     input_names = [l.split("_")[0] for l in input_names]
 
-    # TODO: experiment with speed if with device(cpu:0)
-    for i in range(0, data_len, batch_size):
+    # TODO: older version has a batched iteration with summation. Do we still need this?
+    if type(data) is dict:
+        tensor = []
+        # if multi-input, create a list of tensors per input
+        for k in input_names:
+            tensor.append(data[k].astype('float32'))
+    else:
+        tensor = tf.convert_to_tensor(data, dtype=tf.float32)
 
-        if type(data) is dict:
-            tensor = []
-            # if multi-input, create a list of tensors per input
-            for k in input_names:
-                tensor.append(data[k][i:min(i + batch_size, data_len)].astype('float32'))
-        else:
-            tensor = tf.convert_to_tensor(data[i:min(i + batch_size, data_len)], dtype=tf.float32)
+    curr_activations = tf.Variable(loss_(model_cur(tensor)))
 
-        curr_activations = tf.Variable(loss_(model_cur(tensor)))
+    with tf.GradientTape() as t:
+        next_activations = loss_(model_next(curr_activations))
 
-        with tf.GradientTape() as t:
-            next_activations = loss_(model_next(curr_activations))
+    # Expected next_activations shape: [samples, y]
+    # Expected curr_activations shape: [samples, x]
+    # Gradient output shape: [samples, y, x]
+    dA = t.batch_jacobian(next_activations, curr_activations)
 
-
-        # Expected next_activations shape: [b, y]
-        # Expected curr_activations shape: [b, x]
-        # Gradient output shape: [b, y, x]
-        dA = t.batch_jacobian(next_activations, curr_activations)
-
-        if score_val is None: score_val = fx_modulate(dA)
-        else: score_val += fx_modulate(dA)
+    score_val = fx_modulate(dA)
 
     # restore output activation
     if next_layer == model.layers[-1]:
@@ -323,7 +320,6 @@ def new_gradients(data, cur_layer, next_layer, model, batch_size, fx_modulate, l
     vprint("layer:{}--{}".format(next_layer.name, score_val.shape), verbose=verbose)
 
     # TODO: does this still make sense in our new scenario, with differentiation with respect to activations?
-
     # # 2 aggragate across locations
     # # 2.1 4D
     # if len(score_val.shape) > 3:
@@ -512,11 +508,11 @@ class DepGraph:
     def grad_threshold(self, activation_gradients, next_layer_neurones):
         '''
         Filter out important neurones, based on important neurones of next layer
-        :param activation_gradients: Matrix of activation gradients of shape [b, (L+1), L], where L
+        :param activation_gradients: Matrix of activation gradients of shape [samples, (L+1), L], where L
                                      is the number of neurons in layer L, and (L+1) is the number of neurones
                                      in layer (L+1)
-        :param next_layer_neurones: Binary tensor indicating important neurones of next layer of shape [b, (L+1)]
-        :return: Binary tensor indicating important neurones for current layer, of shape [b, L]
+        :param next_layer_neurones: Binary tensor indicating important neurones of next layer, of shape [samples, (L+1)]
+        :return: Binary tensor indicating important neurones for current layer, of shape [samples, L]
         '''
 
         # Set scores of all entries for non-important next-layer neurones to 0
@@ -546,26 +542,26 @@ class DepGraph:
         filtered_neurones = {}
         filtered_neurones[self.model.layers[-1]] = ... # TODO: decide how to initialise this. Probably: using output classification neuron
 
-        # TODO: remove this tmp fix
+        # TODO: this is a tmp fix, creating a random T/F matrix for the output layer
         shape = self.model.layers[-1].output_shape
         shape = list(shape)
-        shape[0] = data.shape[0]                                                # Set the batch dimension to the data-point number
-        all_output_neurones = np.ones(shape)
-        all_output_neurones[:, 0] = 0                                         # For now, set one column to relevant, one to irrelevant
+        shape[0] = data.shape[0]
+        all_output_neurones = np.random.choice(a=[False, True], size=shape)
         filtered_neurones[self.model.layers[-1]] = all_output_neurones
+
 
         next_layer_neurones = filtered_neurones[self.model.layers[-1]]
 
         # Iterate over layers, output-to-input
-        for i in range(len(self.model.layers) - 2, -1, -1):
+        for i in range(len(self.model.layers)-2, -1, -1):
 
             # Retrieve scores of next layer
             layer = self.model.layers[i]
-            grad_vals = all_layer_gradient_vals[layer] # Assume shape is [b, (L+1), L]
+            grad_vals = all_layer_gradient_vals[layer] # Assume shape is [samples, (L+1), L]
 
             # Filter the important neurones for the considered layer
             next_layer_neurones = self.grad_threshold(grad_vals, next_layer_neurones)
-            filtered_neurones[self.model.layers[i]] = next_layer_neurones
+            filtered_neurones[layer] = next_layer_neurones
 
         return filtered_neurones
 
