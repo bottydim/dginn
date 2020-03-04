@@ -1,3 +1,4 @@
+import numpy
 import numpy as np
 import tensorflow as tf
 from abc import ABC, abstractmethod
@@ -320,3 +321,16 @@ class Weight_Activations_Computer(Relevance_Computer):
 def __main__():
     tf.enable_eager_execution()
     print("Core main!")
+
+
+def compute_omega_vals(X_train, y_train, model, computer, agg_data_points):
+    compute_fx = computer(model=model, agg_data_points=agg_data_points)
+    dg_collections_list = []
+    all_classes = np.unique(y_train).tolist()
+    for cls in all_classes:
+        idx_cls = np.where(y_train == cls)[0]
+        # print(idx_cls[0:10])
+        #     dgs_cls = extract_dgs_by_ids(relevances, idx_cls)
+        dgs_cls = compute_fx(X_train[idx_cls, :])
+        dg_collections_list.append(dgs_cls)
+    return dg_collections_list
