@@ -228,13 +228,13 @@ class Gradients_Computer(Relevance_Computer):
             layer_start = 0
 
         last_layer = model.layers[-1]
-        omega_val[last_layer] = ... # TODO: initialise this suitably (probably using activated output neurones)
+        omega_val[last_layer] = ...  # TODO: initialise this suitably (probably using activated output neurones)
 
         n_layers = len(model.layers)
 
-        for i in range(n_layers-1, layer_start, -1):
+        for i in range(n_layers - 1, layer_start, -1):
 
-            cur_layer  = model.layers[i-1]
+            cur_layer = model.layers[i - 1]
             next_layer = model.layers[i]
 
             # skips layers w/o weights
@@ -247,7 +247,6 @@ class Gradients_Computer(Relevance_Computer):
             vprint("\t omega_val.shape:{}".format(omega_val[cur_layer].shape), verbose=verbose)
 
         return omega_val
-
 
         # TODO: think about removing this, or moving to a separate function
         # Old code version:
@@ -270,7 +269,6 @@ class Gradients_Computer(Relevance_Computer):
 
 # TODO: decide whether to remove other "gradients" method, or rename, or...
 def new_gradients(data, cur_layer, next_layer, model, fx_modulate, loss_, verbose):
-
     # Compute gradient correctly for the last layer by changing the activation fx
     # obtain the logits of the model, instead of softmax output
     if next_layer == model.layers[-1]:
@@ -486,12 +484,6 @@ def weight_activations_compute(data, fx_modulate, l, model, verbose):
     return relevance_val
 
 
-
-
-
-
-
-
 class DepGraph:
     '''
     Dependency Graph class
@@ -501,7 +493,6 @@ class DepGraph:
         self.computer = RelevanceComputer
         self.model = RelevanceComputer.model
         self.layer_start = RelevanceComputer.layer_start
-
 
     def grad_threshold(self, activation_gradients, next_layer_neurones):
         '''
@@ -525,45 +516,53 @@ class DepGraph:
 
         return curr_layer_scores
 
+    def neuron_threshold(self, omega_vals, ):
+        from dginn.relevance_fxs import *
+        from functools import partial
+        select_fx = partial(percentage_threshold, t=0.2)
+        relevance_select_(omega_vals, input_layer=None, select_fx_=select_fx)
 
-    def compute(self, data):
+
+
+    def compute(self, X, y):
         '''
         Compute function, used for computing the dep. graph(s) from the input data
         :param data: input data
+        :param y: one-hot encoding of the true labels
         :return: dependecy graph computed from the input data
         '''
 
-        # Retrieve unfiltered gradient values
-        all_layer_gradient_vals = self.computer(data)
+        data = X
+        # pre-compute unfiltered gradient values
+        all_layer_omega_vals = self.computer(data)
 
         # Initialise neuron values
         filtered_neurones = {}
-        filtered_neurones[self.model.layers[-1]] = ... # TODO: decide how to initialise this. Probably: using output classification neurons
+        filtered_neurones[self.model.layers[
+            -1]] = ...  # TODO: decide how to initialise this. # Probably: using output classification neurons - BD: YES!
 
         # TODO: this is a tmp fix, creating a random T/F matrix for the output layer
         shape = self.model.layers[-1].output_shape
         shape = list(shape)
         shape[0] = data.shape[0]
         all_output_neurones = np.random.choice(a=[False, True], size=shape)
-        filtered_neurones[self.model.layers[-1]] = all_output_neurones
-
+        true_labels = np.argmax(y, axis=1)
+        print("True labels shape:", true_labels.shape)
+        filtered_neurones[self.model.layers[-1]] = true_labels
 
         next_layer_neurones = filtered_neurones[self.model.layers[-1]]
 
         # Iterate over layers, output-to-input
-        for i in range(len(self.model.layers)-2, -1, -1):
-
+        for i in range(len(self.model.layers) - 2, -1, -1):
             # Retrieve scores of next layer
             layer = self.model.layers[i]
-            grad_vals = all_layer_gradient_vals[layer] # Assume shape is [samples, (L+1), L]
+            grad_vals = all_layer_omega_vals[layer]  # Assume shape is [samples, (L+1), L]
 
             # Filter the important neurones for the considered layer
             next_layer_neurones = self.grad_threshold(grad_vals, next_layer_neurones)
             filtered_neurones[layer] = next_layer_neurones
 
         return filtered_neurones
-
-
 
     def compute1(self, xs, ys):
         '''
@@ -575,7 +574,6 @@ class DepGraph:
         '''
 
         pass
-
 
     # TODO: discuss if we need this. If we do, we'll need to re-implement the 4 methods to work on a layer basis.
     # TODO: actually, this is not too much effort. Since computation is done on a layer-by-layer basis anyway for every computer.
@@ -590,19 +588,14 @@ class DepGraph:
         pass
 
 
-
-
-
 class DGINN():
     relevant_neurons = {}
     omega_vals = {}
 
-
-    def __init__(self,RelevanceComputer):
+    def __init__(self, RelevanceComputer):
         X_train = X
         y_train = ys
         computer = Relevance_Computer
-
 
     def compute(self, xs, ys):
         model = self.model
@@ -610,13 +603,14 @@ class DGINN():
         compute_fx = self.compute_fx()
         dg_collections_list = compute_omega_vals(xs, ys, model, computer, agg_data_points=True)
 
+
 class DGINN_1():
     relevant_neurons = {}
 
     def __init__(self):
         pass
 
-    def compute(self, xs,ys):
+    def compute(self, xs, ys):
 
         model = self.model
         layer_start = self.layer_start
@@ -625,7 +619,6 @@ class DGINN_1():
         compute_params = self.compute_params
         verbose = self.verbose
         omega_val = {}
-
 
         # TODO NOTICE THIS IS THE GREATEST BLOCKER since we will start getting neurons compute one @ time
         # this was the problem in v0.1
@@ -638,11 +631,10 @@ class DGINN_1():
                 omega_val[l] = np.array([])
                 continue
             # Paper Steps I.,II.,III.
-            #compute layer relevance values
-            relevance_values = compute_fx(data, l, model,relevant_neurons, **compute_params)
+            # compute layer relevance values
+            relevance_values = compute_fx(data, l, model, relevant_neurons, **compute_params)
 
             # Paper Step IV.
-
 
             # TODO: return to previous line, once data point aggregation is fixed
             # omega_val[l] = mean

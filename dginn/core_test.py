@@ -3,7 +3,7 @@ if __name__ == '__main__':
     tf.enable_eager_execution()
 
 import numpy as np
-from dginn.dginn.core import *
+from dginn.core import *
 
 
 def build_model(input_shape=(14,), num_class=2):
