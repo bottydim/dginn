@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 
+from dginn.relevance_fxs import percentage_threshold
 from dginn.utils import *
 
 # this should be only in the call module, all other modules should not have it!!!
@@ -489,103 +490,89 @@ class DepGraph:
     Dependency Graph class
     '''
 
-    def __init__(self, RelevanceComputer):
+    def __init__(self, RelevanceComputer, strategy="binary"):
         self.computer = RelevanceComputer
         self.model = RelevanceComputer.model
         self.layer_start = RelevanceComputer.layer_start
+        self.strategy = strategy
 
-    def grad_threshold(self, activation_gradients, next_layer_neurones):
+    def compute(self, X, y=None):
+        '''
+        Compute function, used for computing the dep. graph(s) from the input data
+        :param X: input data
+        :param y: one-hot encoding of the labels - could be predicted or true
+        :return: dependecy graph computed from the input data
+        '''
+
+        return self.compute_variable_model(self.model, X, y)
+
+    def compute_variable_model(self, model, X, y=None):
+
+        data = X
+        # pre-compute unfiltered neuron-neuron gradient values
+        all_layer_omega_vals = self.computer(data)
+
+        # Initialise neuron values
+        filtered_neurones = {}
+        # initialise using output classification neurons
+        if y is None:
+
+            # TODO: this is a tmp fix, creating a random T/F matrix for the output layer
+            shape = list(model.layers[-1].output_shape)
+            shape[0] = data.shape[0]
+            filtered_neurones[model.layers[-1]] = np.random.choice(a=[False, True], size=shape)
+        else:
+            # use original shape because grad_threshold apply operations across all neurons
+            true_labels = y # vs true_labels = np.argmax(y, axis=1)
+            # print("True labels shape:", true_labels.shape)
+            filtered_neurones[model.layers[-1]] = true_labels.astype(bool)
+
+        # initialise
+        current_layer_neurons = filtered_neurones[model.layers[-1]]
+
+        # Iterate over layers, output-to-input
+        for i in range(len(model.layers) - 2, -1, -1):
+            # Retrieve scores of next layer
+            layer = model.layers[i]
+            grad_vals = all_layer_omega_vals[layer]  # Assume shape is [samples, (L+1), L]
+
+            # Filter the important neurones for the considered layer
+            current_layer_neurons = self.grad_threshold(grad_vals, current_layer_neurons, strategy=self.strategy)
+            filtered_neurones[layer] = current_layer_neurons
+
+        return filtered_neurones
+
+    def feature_importance(self, model, X, y=None):
+        self.strategy = "average"
+        filtered_neurons = self.compute_variable_model(self.model, X, y)
+        input_layer = model.layers[0]
+        return filtered_neurons[input_layer]
+
+    def grad_threshold(self, omega_values, next_layer_neurones, threshold=0.2, strategy="binary"):
         '''
         Filter out important neurones, based on important neurones of next layer
-        :param activation_gradients: Matrix of activation gradients of shape [samples, (L+1), L], where L
+        :param omega_values: Matrix of activation gradients of shape [samples, (L+1), L], where L
                                      is the number of neurons in layer L, and (L+1) is the number of neurones
                                      in layer (L+1)
         :param next_layer_neurones: Binary tensor indicating important neurones of next layer, of shape [samples, (L+1)]
         :return: Binary tensor indicating important neurones for current layer, of shape [samples, L]
         '''
-
         # Set scores of all entries for non-important next-layer neurones to 0
-        activation_gradients = activation_gradients.numpy()
+        omega_values = omega_values.numpy()
         next_layer_neurones = np.expand_dims(next_layer_neurones, axis=-1)
-        masked_scores = np.multiply(next_layer_neurones, activation_gradients)
+        masked_scores = np.multiply(next_layer_neurones, omega_values)
 
-        # For now, assume the filtering function thresholds on activation value
-        threshold = 0.1
-        thresholded_mask = masked_scores > threshold
-        curr_layer_scores = np.any(thresholded_mask, axis=1)
-
+        # threshholding based on percentage select Top Threshold percent neurons
+        select_fx_percentage = lambda relevance: percentage_threshold(relevance, threshold)
+        relevant_neurons_idx = np.apply_along_axis(select_fx_percentage, axis=2, arr=masked_scores)
+        thresholded_mask = np.zeros(masked_scores.shape)
+        rows_idx, cols_idx, channel_idx = generate_index_arrays(thresholded_mask, relevant_neurons_idx)
+        thresholded_mask[rows_idx, cols_idx, channel_idx] = masked_scores[rows_idx, cols_idx, channel_idx]
+        if strategy == "binary":
+            curr_layer_scores = np.any(thresholded_mask, axis=1)
+        elif strategy == "average":
+            curr_layer_scores = np.mean(thresholded_mask, axis=1)
         return curr_layer_scores
-
-    def neuron_threshold(self, omega_vals, ):
-        from dginn.relevance_fxs import *
-        from functools import partial
-        select_fx = partial(percentage_threshold, t=0.2)
-        relevance_select_(omega_vals, input_layer=None, select_fx_=select_fx)
-
-
-
-    def compute(self, X, y):
-        '''
-        Compute function, used for computing the dep. graph(s) from the input data
-        :param data: input data
-        :param y: one-hot encoding of the true labels
-        :return: dependecy graph computed from the input data
-        '''
-
-        data = X
-        # pre-compute unfiltered gradient values
-        all_layer_omega_vals = self.computer(data)
-
-        # Initialise neuron values
-        filtered_neurones = {}
-        filtered_neurones[self.model.layers[
-            -1]] = ...  # TODO: decide how to initialise this. # Probably: using output classification neurons - BD: YES!
-
-        # TODO: this is a tmp fix, creating a random T/F matrix for the output layer
-        shape = self.model.layers[-1].output_shape
-        shape = list(shape)
-        shape[0] = data.shape[0]
-        all_output_neurones = np.random.choice(a=[False, True], size=shape)
-        true_labels = np.argmax(y, axis=1)
-        print("True labels shape:", true_labels.shape)
-        filtered_neurones[self.model.layers[-1]] = true_labels
-
-        next_layer_neurones = filtered_neurones[self.model.layers[-1]]
-
-        # Iterate over layers, output-to-input
-        for i in range(len(self.model.layers) - 2, -1, -1):
-            # Retrieve scores of next layer
-            layer = self.model.layers[i]
-            grad_vals = all_layer_omega_vals[layer]  # Assume shape is [samples, (L+1), L]
-
-            # Filter the important neurones for the considered layer
-            next_layer_neurones = self.grad_threshold(grad_vals, next_layer_neurones)
-            filtered_neurones[layer] = next_layer_neurones
-
-        return filtered_neurones
-
-    def compute1(self, xs, ys):
-        '''
-        This implementation computes all relevance values first, and then filters then based
-        on successive layers
-        :param xs:
-        :param ys:
-        :return:
-        '''
-
-        pass
-
-    # TODO: discuss if we need this. If we do, we'll need to re-implement the 4 methods to work on a layer basis.
-    # TODO: actually, this is not too much effort. Since computation is done on a layer-by-layer basis anyway for every computer.
-    def compute2(self, xs, ys):
-        '''
-        This implementation interleaves computation and filtering of layers.
-        Layer L is computed only after layer L+1 is computed and filtered
-        :param xs:
-        :param ys:
-        :return:
-        '''
-        pass
 
 
 class DGINN():
@@ -642,6 +629,35 @@ class DGINN_1():
 
             vprint("\t omega_val.shape:{}".format(relevance_values.shape), verbose=verbose)
         return omega_val
+
+
+def generate_index_arrays(thresholded_mask, index_array):
+    '''
+
+    :param thresholded_mask: array N*M*L
+    :param index_array: N*M*K s.t. K<L
+    :return: 3 arrays: the array to index to rows, cols, and channels respectively according to the index array
+
+
+    imitate:
+    for i in range(rows):
+        for j in range(cols):
+            print(np.array_equal(np.where(thresholded_mask[i,j]==1)[0], np.sort(result[i,j])))
+
+    '''
+
+    rows = thresholded_mask.shape[0]
+    cols = thresholded_mask.shape[1]
+    channels = index_array.shape[2]
+
+    # produce an array such that every element is added n times to the array [6,7,8] = [6,6,7,7,8,8]
+    # rows_idx = np.repeat(np.arange(rows),repeats=cols,axis=0)
+    rows_idx = np.repeat(np.arange(rows), repeats=cols * channels, axis=0)
+    cols_idx = np.repeat(np.broadcast_to(np.arange(cols), (rows, cols)), repeats=channels, axis=1).flatten()
+    channels_idx = index_array.flatten()
+    assert len(rows_idx) == len(cols_idx)
+    assert len(rows_idx) == len(channels_idx)
+    return rows_idx, cols_idx, channels_idx
 
 
 def __main__():

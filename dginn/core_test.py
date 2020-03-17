@@ -1,13 +1,12 @@
 if __name__ == '__main__':
     import tensorflow as tf
+
     tf.enable_eager_execution()
 
-import numpy as np
 from dginn.core import *
 
 
 def build_model(input_shape=(14,), num_class=2):
-
     num_layers = 2
     num_hidden = 100
 
@@ -15,7 +14,8 @@ def build_model(input_shape=(14,), num_class=2):
     model.add(tf.keras.layers.Input(shape=input_shape))
 
     for i in range(num_layers):
-        model.add(tf.keras.layers.Dense(num_hidden, activation=tf.nn.relu, kernel_regularizer=tf.keras.regularizers.l2(0.03)))
+        model.add(
+            tf.keras.layers.Dense(num_hidden, activation=tf.nn.relu, kernel_regularizer=tf.keras.regularizers.l2(0.03)))
 
     model.add(tf.keras.layers.Dense(num_class, activation=tf.nn.softmax))
 
@@ -30,14 +30,12 @@ def build_model(input_shape=(14,), num_class=2):
     return model
 
 
-
-
 def main():
-
     n_samples = 50
     n_features = 10
 
     x_train = np.random.uniform(0.0, 10.0, (n_samples, n_features))
+    # high = max + 1
     y_train = np.random.randint(low=0, high=2, size=(n_samples))
     y_train = tf.keras.utils.to_categorical(y_train)
 
@@ -45,7 +43,7 @@ def main():
 
     model.fit(x_train, y_train, epochs=20, verbose=True)
 
-    loss = lambda x: x # Use the identity for neuron preprocessing
+    loss = lambda x: x  # Use the identity for neuron preprocessing
     agg_data_points = False
     agg_neurons = False
 
@@ -55,12 +53,15 @@ def main():
 
     dep_graph = DepGraph(grad_computer)
 
-    dgs = dep_graph.compute(x_train)
+    dgs = dep_graph.compute(x_train, y_train)
+    # dgs = dep_graph.compute(x_train,None)
 
     print("Obtained dependency graphs: ", dgs)
-
+    dep_graph = DepGraph(grad_computer, strategy="average")
+    dgs = dep_graph.compute(x_train, y_train)
+    print("Obtained dependency graphs: ", dgs)
+    feature_nb = dep_graph.feature_importance(model,x_train, y_train)
+    print(feature_nb.shape)
 
 if __name__ == '__main__':
     main()
-
-

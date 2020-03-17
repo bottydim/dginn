@@ -17,6 +17,13 @@ def select_random(relevance, threshold):
 
 
 def relevance_select_(omega_val, input_layer, select_fx_):
+    '''
+
+    :param omega_val: dict of layer: omega_values
+    :param input_layer:
+    :param select_fx_:
+    :return:
+    '''
     relevant = {}
 
     for l, relevance in omega_val.items():
@@ -65,6 +72,7 @@ def relevance_select_random(omega_val, input_layer, threshold):
 def relevance_select(omega_val, input_layer, threshold=0.5):
     select_fx_percentage = lambda relevance: percentage_threshold(relevance, threshold)
     return relevance_select_(omega_val, input_layer, select_fx_percentage)
+
 
 
 def relevance_select_mean(omega_val, input_layer):
