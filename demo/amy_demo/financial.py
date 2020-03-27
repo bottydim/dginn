@@ -29,12 +29,16 @@ def main():
     print(path_dir)
     model_save_path = path_dir / "uci_model_dataset_{}.h5".format(dataset_id)
     modified_save_path = path_dir / "uci_modified_dataset_{}.h5".format(dataset_id)
+
+    # convert to strings to avoid keras filepath.endswith(."h5") line
+    model_save_path = str(model_save_path)
+    modified_save_path = str(modified_save_path)
     if not os.path.exists(model_save_path):
         # Train model
         fit_model(model, X_train, Y_train, verbose=1)
         # Generate adversarially-trained model
         model_modified = adversarial_explanation_wrapper(X_train, Y_train, model, z_idx=z_idx, e_alpha=0.25)
-        print("model modified")
+        print("Generated model modified")
         if not os.path.exists(path_dir):
             try:
                 path = path_dir
@@ -55,26 +59,36 @@ def main():
     # from functools import partial
     # dginn_grad = partial(dginn_local_importance,Relevance_Computer=Gradients_Computer)
     dginn_grad = dginn_local_importance
-    # Extract feature importances using different methods
-    feature_importance_methods = [saliency, gradient_x_input, integrated_grads, guided_backprop, dginn_grad]
 
+    loss = lambda x: x  # Use the identity for neuron preprocessing
+    agg_data_points = False
+    agg_neurons = False
+    from dginn.core import Gradients_Computer, DepGraph
+    grad_computer = Gradients_Computer(model, loss=loss,
+                                       agg_data_points=agg_data_points,
+                                       agg_neurons=agg_neurons)
+
+    dep_graph = DepGraph(grad_computer)
+    dginn_full = dep_graph.feature_importance
+    # Extract feature importances using different methods
+    feature_importance_methods = [saliency, gradient_x_input, integrated_grads, guided_backprop, dginn_grad, dginn_full]
+
+    feature_importance_methods = [dginn_full]
     # Compute and compare feature importances for both the original and adversarially-trained model
     models = [model, model_modified]
     X = X_train
     Y = Y_train
     inputs = tf.convert_to_tensor(X, dtype=tf.float32)
     outputs = tf.convert_to_tensor(Y, dtype=tf.float32)
-    att_method_str = ["Gradients", "Gradient*Input", "Integrated Gradients", "Guided-Backprop", "DGINN", "LIME"]
+    att_method_str = ["Gradients", "Gradient*Input", "Integrated Gradients", "Guided-Backprop", "DGINN local",
+                      "DGINN FULL"]
     attribution_list = generate_attribution_list(models, inputs, z_idx, ys=outputs,
-                                                 attribution_methods=feature_importance_methods,
-                                                 att_method_str=att_method_str)
+                                                 attribution_methods=feature_importance_methods,)
 
     fig = plot_ranking_histograms_att(attribution_list, att_method_str, num_f=X_train.shape[1], z_idx=z_idx,
                                       models_str=["Original", "Modified"])
 
     fig.show()
-
-
 
 
 if __name__ == '__main__':

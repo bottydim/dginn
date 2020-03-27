@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.models import Sequential
 
 from dginn.relevance_fxs import percentage_threshold
 from dginn.utils import *
@@ -219,7 +218,7 @@ class Gradients_Computer(Relevance_Computer):
         self.loss = loss
         self.batch_size = batch_size
 
-    def __call__(self, data):
+    def __call__(self, data, ys=None):
         model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose = self.model, self.fx_modulate, self.layer_start, self.agg_data_points, self.agg_neurons, self.verbose
         loss_ = self.loss
         batch_size = self.batch_size
@@ -269,7 +268,19 @@ class Gradients_Computer(Relevance_Computer):
 
 
 # TODO: decide whether to remove other "gradients" method, or rename, or...
-def new_gradients(data, cur_layer, next_layer, model, fx_modulate, loss_, verbose):
+def new_gradients(data, cur_layer, next_layer, model, fx_modulate, loss_, verbose=0, d_wrt="activations"):
+    """
+
+    :param data:
+    :param cur_layer:
+    :param next_layer: the upper layer (closer to the output)
+    :param model:
+    :param fx_modulate:
+    :param loss_:
+    :param verbose:
+    :param d_wrt: differentiate with respect to activations or weighs
+    :return:
+    """
     # Compute gradient correctly for the last layer by changing the activation fx
     # obtain the logits of the model, instead of softmax output
     if next_layer == model.layers[-1]:
@@ -277,12 +288,7 @@ def new_gradients(data, cur_layer, next_layer, model, fx_modulate, loss_, verbos
         next_layer.activation = tf.keras.activations.linear
 
     # Create submodel up to (and including) the current layer
-    model_cur = tf.keras.Model(inputs=model.inputs, outputs=[cur_layer.output])
-
-    # TODO: think if this generalises to other model types
-    # Create sub-model consisting of the next layer only
-    model_next = Sequential()
-    model_next.add(next_layer)
+    model_k = tf.keras.Model(inputs=model.inputs, outputs=[cur_layer.output, next_layer.output])
 
     # TODO: check how we handle multi-input data?!
     # TODO: fix strange layer name change : vs _
@@ -290,7 +296,8 @@ def new_gradients(data, cur_layer, next_layer, model, fx_modulate, loss_, verbos
     # Note: line not tested
     input_names = [l.split("_")[0] for l in input_names]
 
-    # TODO: older version has a batched iteration with summation. Do we still need this?
+    # older version has a batched iteration with summation. Do we still need this? Yes
+    # Multi-input processing
     if type(data) is dict:
         tensor = []
         # if multi-input, create a list of tensors per input
@@ -299,17 +306,30 @@ def new_gradients(data, cur_layer, next_layer, model, fx_modulate, loss_, verbos
     else:
         tensor = tf.convert_to_tensor(data, dtype=tf.float32)
 
-    curr_activations = tf.Variable(loss_(model_cur(tensor)))
-
     with tf.GradientTape() as t:
-        next_activations = loss_(model_next(curr_activations))
+        current_activations, next_activations = model_k(tensor)
 
     # Expected next_activations shape: [samples, y]
     # Expected curr_activations shape: [samples, x]
     # Gradient output shape: [samples, y, x]
-    dA = t.batch_jacobian(next_activations, curr_activations)
 
-    score_val = fx_modulate(dA)
+    # TODO: Do we want to differentiate with respect to weights (parameters) or activations?
+    if d_wrt == "activations":
+        d_next_d_current = t.batch_jacobian(next_activations, current_activations)
+    elif d_wrt == "weights":
+        raise NotImplementedError
+        # TODO: think about the case that cur_layer input * output len(outputt) = # units in current
+        # Need first dimension of target shape ((50, 100)) and source shape ((100, 100)) to match.
+        # first dimension is data points
+        d_next_d_current = t.batch_jacobian(next_activations, next_layer.weights[0])
+    elif d_wrt == "bias":
+        raise NotImplementedError
+        d_next_d_current = t.batch_jacobian(next_activations, cur_layer.weights[1])
+    else:
+        raise NotImplementedError
+
+
+    score_val = fx_modulate(d_next_d_current)
 
     # restore output activation
     if next_layer == model.layers[-1]:
@@ -523,7 +543,7 @@ class DepGraph:
             filtered_neurones[model.layers[-1]] = np.random.choice(a=[False, True], size=shape)
         else:
             # use original shape because grad_threshold apply operations across all neurons
-            true_labels = y # vs true_labels = np.argmax(y, axis=1)
+            true_labels = y  # vs true_labels = np.argmax(y, axis=1)
             # print("True labels shape:", true_labels.shape)
             filtered_neurones[model.layers[-1]] = true_labels.astype(bool)
 
@@ -542,8 +562,18 @@ class DepGraph:
 
         return filtered_neurones
 
-    def feature_importance(self, model, X, y=None):
+    def feature_importance(self, model, X, ys=None):
+        '''
+
+        :param model:
+        :param X:
+        :param ys: target values (keep the signiture value the same to work with AE
+        :return:
+        '''
         self.strategy = "average"
+        self.model = model
+        X = X.numpy()
+        y = ys.numpy()
         filtered_neurons = self.compute_variable_model(self.model, X, y)
         input_layer = model.layers[0]
         return filtered_neurons[input_layer]
@@ -658,6 +688,19 @@ def generate_index_arrays(thresholded_mask, index_array):
     assert len(rows_idx) == len(cols_idx)
     assert len(rows_idx) == len(channels_idx)
     return rows_idx, cols_idx, channels_idx
+
+
+def compute_omega_vals(X_train, y_train, model, computer, agg_data_points):
+    compute_fx = computer(model=model, agg_data_points=agg_data_points)
+    dg_collections_list = []
+    all_classes = np.unique(y_train).tolist()
+    for cls in all_classes:
+        idx_cls = np.where(y_train == cls)[0]
+        # print(idx_cls[0:10])
+        #     dgs_cls = extract_dgs_by_ids(relevances, idx_cls)
+        dgs_cls = compute_fx(X_train[idx_cls, :])
+        dg_collections_list.append(dgs_cls)
+    return dg_collections_list
 
 
 def __main__():
