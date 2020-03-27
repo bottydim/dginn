@@ -73,8 +73,8 @@ def main():
     # Extract feature importances using different methods
     feature_importance_methods = [saliency, gradient_x_input, integrated_grads, guided_backprop, dginn_grad, dginn_full]
 
-    #TODO check once bug is fixed!
-    feature_importance_methods = [dginn_full]
+    # TODO check once bug is fixed!
+    feature_importance_methods = [saliency, dginn_full]
     # Compute and compare feature importances for both the original and adversarially-trained model
     models = [model, model_modified]
     X = X_train
@@ -83,8 +83,9 @@ def main():
     outputs = tf.convert_to_tensor(Y, dtype=tf.float32)
     att_method_str = ["Gradients", "Gradient*Input", "Integrated Gradients", "Guided-Backprop", "DGINN local",
                       "DGINN FULL"]
+    att_method_str = ["Gradients", "DGINN FULL"]
     attribution_list = generate_attribution_list(models, inputs, z_idx, ys=outputs,
-                                                 attribution_methods=feature_importance_methods,)
+                                                 attribution_methods=feature_importance_methods, )
 
     fig = plot_ranking_histograms_att(attribution_list, att_method_str, num_f=X_train.shape[1], z_idx=z_idx,
                                       models_str=["Original", "Modified"])
