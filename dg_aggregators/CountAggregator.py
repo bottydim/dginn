@@ -93,7 +93,7 @@ if __name__ == '__main__':
     import tensorflow as tf
     import tensorflow.keras as keras
 
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
     from mnist_loader import load_mnist, build_sample_model
     import numpy as np
     from dataset_utils import filter_dataset

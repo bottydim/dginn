@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 if __name__ == '__main__':
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
 
 from evaluate import *
 

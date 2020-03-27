@@ -1,6 +1,6 @@
 if __name__ == '__main__':
     import tensorflow as tf
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
 
 
 from demo.data_loaders.mnist_loaders import randomly_sample

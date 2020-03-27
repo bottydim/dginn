@@ -9,12 +9,12 @@ from dginn.utils import *
 # this should be only in the call module, all other modules should not have it!!!
 # best keep it in the main fx!
 
-config = tf.ConfigProto()
+config = tf.compat.v1.ConfigProto()
 # config.gpu_options.visible_device_list = str('1')
 # config.gpu_options.per_process_gpu_memory_fraction = 0.5
 config.gpu_options.allow_growth = True
 
-sess = tf.Session(config=config)
+sess = tf.compat.v1.Session(config=config)
 
 '''
 Implementation of dep. graphs, as outlined in Algorithm X in paper Y
@@ -328,7 +328,6 @@ def new_gradients(data, cur_layer, next_layer, model, fx_modulate, loss_, verbos
     else:
         raise NotImplementedError
 
-
     score_val = fx_modulate(d_next_d_current)
 
     # restore output activation
@@ -510,11 +509,24 @@ class DepGraph:
     Dependency Graph class
     '''
 
-    def __init__(self, RelevanceComputer, strategy="binary"):
-        self.computer = RelevanceComputer
-        self.model = RelevanceComputer.model
-        self.layer_start = RelevanceComputer.layer_start
+    def __init__(self, relevance_computer, strategy="binary"):
+        self.__computer = relevance_computer
+        self.__model = relevance_computer.model
+        self.layer_start = relevance_computer.layer_start
         self.strategy = strategy
+
+    @property
+    def model(self):
+        return self.__model
+
+    @model.setter
+    def model(self, model):
+        self.__model = model
+        self.__computer.model = model
+
+    @property
+    def computer(self):
+        return self.__computer
 
     def compute(self, X, y=None):
         '''
@@ -572,9 +584,10 @@ class DepGraph:
         '''
         self.strategy = "average"
         self.model = model
-        X = X.numpy()
-        y = ys.numpy()
-        filtered_neurons = self.compute_variable_model(self.model, X, y)
+        if type(X) is not np.ndarray:
+            X = X.numpy()
+            ys = ys.numpy()
+        filtered_neurons = self.compute_variable_model(self.model, X, ys)
         input_layer = model.layers[0]
         return filtered_neurons[input_layer]
 
@@ -704,5 +717,5 @@ def compute_omega_vals(X_train, y_train, model, computer, agg_data_points):
 
 
 def __main__():
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
     print("Core main!")

@@ -1,6 +1,6 @@
 if __name__ == '__main__':
     import tensorflow as tf
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
 from aggregator_utils import get_count_aggregators, uncertainty_pred, compute_dg
 from core import *
 from dataset_utils import filter_dataset

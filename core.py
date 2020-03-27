@@ -6,7 +6,7 @@ from dginn.utils import *
 # this should be only in the call module, all other modules should not have it!!!
 # best keep it in the main fx!
 
-config = tf.ConfigProto()
+config = tf.compat.v1.ConfigProto()
 # config.gpu_options.visible_device_list = str('1')
 # config.gpu_options.per_process_gpu_memory_fraction = 0.5
 config.gpu_options.allow_growth = True
@@ -319,7 +319,7 @@ class Weight_Activations_Computer(Relevance_Computer):
 
 
 def __main__():
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
     print("Core main!")
 
 

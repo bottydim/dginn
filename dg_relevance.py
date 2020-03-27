@@ -2,20 +2,20 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 if __name__ == '__main__':
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
 from matplotlib import pyplot as plt
 from dginn.utils import vprint, Timer
 import math
 
 # this should be only in the call module, all other modules should not have it!!!
 # best keep it in the main fx! 
-# tf.enable_eager_execution()
-config = tf.ConfigProto()
+# tf.compat.v1.enable_eager_execution()
+config = tf.compat.v1.ConfigProto()
 # config.gpu_options.visible_device_list = str('1')
 # config.gpu_options.per_process_gpu_memory_fraction = 0.5
 config.gpu_options.allow_growth = True
 
-sess = tf.Session(config=config)
+sess = tf.compat.v1.Session(config=config)
 
 global verbose
 verbose = False

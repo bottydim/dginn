@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 if __name__ == '__main__':
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
 
 from applications.feature_importance import dginn_local_importance
 from demo.amy_demo.adv_model_generator import adversarial_explanation_wrapper
@@ -73,6 +73,7 @@ def main():
     # Extract feature importances using different methods
     feature_importance_methods = [saliency, gradient_x_input, integrated_grads, guided_backprop, dginn_grad, dginn_full]
 
+    #TODO check once bug is fixed!
     feature_importance_methods = [dginn_full]
     # Compute and compare feature importances for both the original and adversarially-trained model
     models = [model, model_modified]

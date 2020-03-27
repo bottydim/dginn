@@ -1,6 +1,6 @@
 if __name__ == '__main__':
     import tensorflow as tf
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
 import numpy as np
 from dataset_utils import filter_dataset
 from dg_aggregators.CountAggregator import CountAggregator

@@ -1,6 +1,6 @@
 if __name__ == '__main__':
     import tensorflow as tf
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
 
 from aggregator_utils import compute_dg_per_datapoint, extract_dgs_by_ids
 from mnist_loader import get_mnist_model

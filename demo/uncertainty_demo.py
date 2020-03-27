@@ -1,7 +1,7 @@
 if __name__ == '__main__':
     import tensorflow as tf
 
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
 
 import os
 from collections import defaultdict

@@ -4,7 +4,7 @@ from demo.uncertainty_demo import save_fig
 if __name__ == '__main__':
     import tensorflow as tf
 
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
 
 from aggregator_utils import extract_dgs_by_ids, \
     get_aggregators_from_collection
