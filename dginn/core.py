@@ -232,16 +232,22 @@ class Gradients_Computer(Relevance_Computer):
 
         n_layers = len(model.layers)
 
-        for i in range(n_layers - 1, layer_start, -1):
+        for i in range(n_layers - 1, layer_start - 1, -1):
 
-            cur_layer = model.layers[i - 1]
-            next_layer = model.layers[i]
+            # TODO check for different input structures!
+            # compute wrt input
+            if i == 0:
+                cur_layer = model.layers[0].input
+                next_layer = model.layers[0]
+            else:
+                cur_layer = model.layers[i - 1]
+                next_layer = model.layers[i]
 
-            # skips layers w/o weights
-            # e.g. input/pooling
-            if cur_layer.weights == []:
-                omega_val[cur_layer] = np.array([])
-                continue
+                # skips layers w/o weights
+                # e.g. input/pooling
+                if cur_layer.weights == []:
+                    omega_val[cur_layer] = np.array([])
+                    continue
 
             omega_val[cur_layer] = new_gradients(data, cur_layer, next_layer, model, fx_modulate, loss_, verbose)
             vprint("\t omega_val.shape:{}".format(omega_val[cur_layer].shape), verbose=verbose)
@@ -288,7 +294,14 @@ def new_gradients(data, cur_layer, next_layer, model, fx_modulate, loss_, verbos
         next_layer.activation = tf.keras.activations.linear
 
     # Create submodel up to (and including) the current layer
-    model_k = tf.keras.Model(inputs=model.inputs, outputs=[cur_layer.output, next_layer.output])
+
+    # special case: input
+    if type(cur_layer) is tf.Tensor:
+        current_layer_output = cur_layer
+    else:
+        current_layer_output = cur_layer.output
+
+    model_k = tf.keras.Model(inputs=model.inputs, outputs=[current_layer_output, next_layer.output])
 
     # TODO: check how we handle multi-input data?!
     # TODO: fix strange layer name change : vs _
@@ -307,6 +320,9 @@ def new_gradients(data, cur_layer, next_layer, model, fx_modulate, loss_, verbos
         tensor = tf.convert_to_tensor(data, dtype=tf.float32)
 
     with tf.GradientTape() as t:
+        # special case: input
+        if type(cur_layer) is tf.Tensor:
+            t.watch(tensor)
         current_activations, next_activations = model_k(tensor)
 
     # Expected next_activations shape: [samples, y]
@@ -315,7 +331,11 @@ def new_gradients(data, cur_layer, next_layer, model, fx_modulate, loss_, verbos
 
     # TODO: Do we want to differentiate with respect to weights (parameters) or activations?
     if d_wrt == "activations":
-        d_next_d_current = t.batch_jacobian(next_activations, current_activations)
+        # special case: input
+        if type(cur_layer) is tf.Tensor:
+            d_next_d_current = t.batch_jacobian(next_activations, tensor)
+        else:
+            d_next_d_current = t.batch_jacobian(next_activations, current_activations)
     elif d_wrt == "weights":
         raise NotImplementedError
         # TODO: think about the case that cur_layer input * output len(outputt) = # units in current
@@ -541,8 +561,6 @@ class DepGraph:
     def compute_variable_model(self, model, X, y=None):
 
         data = X
-        # pre-compute unfiltered neuron-neuron gradient values
-        all_layer_omega_vals = self.computer(data)
 
         # Initialise neuron values
         filtered_neurones = {}
@@ -559,13 +577,22 @@ class DepGraph:
             # print("True labels shape:", true_labels.shape)
             filtered_neurones[model.layers[-1]] = true_labels.astype(bool)
 
+        # pre-compute unfiltered neuron-neuron gradient values
+        all_layer_omega_vals = self.computer(data, ys=y)
+
         # initialise
         current_layer_neurons = filtered_neurones[model.layers[-1]]
 
         # Iterate over layers, output-to-input
-        for i in range(len(model.layers) - 2, -1, -1):
+        # start from -2 : -1 to skip the output layer; -1 to account for 0 index
+        for i in range(len(model.layers) - 2, -2, -1):
+
+            # compute wrt input
+            if i == -1:
+                layer = model.layers[0].input
+            else:
+                layer = model.layers[i]
             # Retrieve scores of next layer
-            layer = model.layers[i]
             grad_vals = all_layer_omega_vals[layer]  # Assume shape is [samples, (L+1), L]
 
             # Filter the important neurones for the considered layer
@@ -588,7 +615,7 @@ class DepGraph:
             X = X.numpy()
             ys = ys.numpy()
         filtered_neurons = self.compute_variable_model(self.model, X, ys)
-        input_layer = model.layers[0]
+        input_layer = model.layers[0].input
         return filtered_neurons[input_layer]
 
     def grad_threshold(self, omega_values, next_layer_neurones, threshold=0.2, strategy="binary"):
@@ -611,7 +638,10 @@ class DepGraph:
         thresholded_mask = np.zeros(masked_scores.shape)
         rows_idx, cols_idx, channel_idx = generate_index_arrays(thresholded_mask, relevant_neurons_idx)
         thresholded_mask[rows_idx, cols_idx, channel_idx] = masked_scores[rows_idx, cols_idx, channel_idx]
+
+        # take the first axis since shape [samples, (L+1), L]
         if strategy == "binary":
+            # TODO verify this makes sense
             curr_layer_scores = np.any(thresholded_mask, axis=1)
         elif strategy == "average":
             curr_layer_scores = np.mean(thresholded_mask, axis=1)

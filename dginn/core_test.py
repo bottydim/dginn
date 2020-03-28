@@ -51,17 +51,29 @@ def main():
                                        agg_data_points=agg_data_points,
                                        agg_neurons=agg_neurons)
 
-    dep_graph = DepGraph(grad_computer)
-
+    # test binary strategy
+    dep_graph = DepGraph(grad_computer,strategy="binary")
     dgs = dep_graph.compute(x_train, y_train)
     # dgs = dep_graph.compute(x_train,None)
-
     print("Obtained dependency graphs: ", dgs)
+
+    # test average
     dep_graph = DepGraph(grad_computer, strategy="average")
     dgs = dep_graph.compute(x_train, y_train)
     print("Obtained dependency graphs: ", dgs)
     feature_nb = dep_graph.feature_importance(model,x_train, y_train)
     print(feature_nb.shape)
+    assert feature_nb.shape == x_train.shape
+
+
+    ##################
+    # Test changing the model on the fly
+    model_2 = build_model((n_features,), 2)
+
+    model_2.fit(x_train, y_train, epochs=20, verbose=True)
+    feature_nb = dep_graph.feature_importance(model_2,x_train, y_train)
+    print(feature_nb.shape)
+
 
 if __name__ == '__main__':
     main()
