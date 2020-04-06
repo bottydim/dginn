@@ -601,7 +601,7 @@ class DepGraph:
 
         return filtered_neurones
 
-    def feature_importance(self, model, X, ys=None):
+    def feature_importance(self, model, X, ys=None,threshold=0.2):
         '''
 
         :param model:
@@ -614,7 +614,7 @@ class DepGraph:
         if type(X) is not np.ndarray:
             X = X.numpy()
             ys = ys.numpy()
-        filtered_neurons = self.compute_variable_model(self.model, X, ys)
+        filtered_neurons = self.compute_variable_model(self.model, X, ys,threshold=threshold)
         input_layer = model.layers[0].input
         return filtered_neurons[input_layer]
 
