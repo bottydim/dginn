@@ -274,12 +274,12 @@ class Gradients_Computer(Relevance_Computer):
 
 
 # TODO: decide whether to remove other "gradients" method, or rename, or...
-def new_gradients(data, cur_layer, next_layer, model, fx_modulate, loss_, verbose=0, d_wrt="activations"):
+def new_gradients(data, lower_layer, upper_layer, model, fx_modulate, loss_, verbose=0, d_wrt="activations"):
     """
 
     :param data:
-    :param cur_layer:
-    :param next_layer: the upper layer (closer to the output)
+    :param lower_layer:
+    :param upper_layer: the upper layer (closer to the output)
     :param model:
     :param fx_modulate:
     :param loss_:
@@ -289,19 +289,19 @@ def new_gradients(data, cur_layer, next_layer, model, fx_modulate, loss_, verbos
     """
     # Compute gradient correctly for the last layer by changing the activation fx
     # obtain the logits of the model, instead of softmax output
-    if next_layer == model.layers[-1]:
-        activation_temp = next_layer.activation
-        next_layer.activation = tf.keras.activations.linear
+    if upper_layer == model.layers[-1]:
+        activation_temp = upper_layer.activation
+        upper_layer.activation = tf.keras.activations.linear
 
     # Create submodel up to (and including) the current layer
 
     # special case: input
-    if type(cur_layer) is tf.Tensor:
-        current_layer_output = cur_layer
+    if type(lower_layer) is tf.Tensor:
+        lower_layer_output = lower_layer
     else:
-        current_layer_output = cur_layer.output
+        lower_layer_output = lower_layer.output
 
-    model_k = tf.keras.Model(inputs=model.inputs, outputs=[current_layer_output, next_layer.output])
+    model_k = tf.keras.Model(inputs=model.inputs, outputs=[lower_layer_output, upper_layer.output])
 
     # TODO: check how we handle multi-input data?!
     # TODO: fix strange layer name change : vs _
@@ -321,39 +321,39 @@ def new_gradients(data, cur_layer, next_layer, model, fx_modulate, loss_, verbos
 
     with tf.GradientTape() as t:
         # special case: input
-        if type(cur_layer) is tf.Tensor:
+        if type(lower_layer) is tf.Tensor:
             t.watch(tensor)
-        current_activations, next_activations = model_k(tensor)
+        lower_layer_activations, upper_layer_activations = model_k(tensor)
 
-    # Expected next_activations shape: [samples, y]
-    # Expected curr_activations shape: [samples, x]
+    # Expected upper_layer_activations shape: [samples, y]
+    # Expected lower_layer_activations shape: [samples, x]
     # Gradient output shape: [samples, y, x]
 
     # TODO: Do we want to differentiate with respect to weights (parameters) or activations?
     if d_wrt == "activations":
         # special case: input
-        if type(cur_layer) is tf.Tensor:
-            d_next_d_current = t.batch_jacobian(next_activations, tensor)
+        if type(lower_layer) is tf.Tensor:
+            d_upper_d_lower = t.batch_jacobian(upper_layer_activations, tensor)
         else:
-            d_next_d_current = t.batch_jacobian(next_activations, current_activations)
+            d_upper_d_lower = t.batch_jacobian(upper_layer_activations, lower_layer_activations)
     elif d_wrt == "weights":
         raise NotImplementedError
         # TODO: think about the case that cur_layer input * output len(outputt) = # units in current
         # Need first dimension of target shape ((50, 100)) and source shape ((100, 100)) to match.
         # first dimension is data points
-        d_next_d_current = t.batch_jacobian(next_activations, next_layer.weights[0])
+        d_upper_d_lower = t.batch_jacobian(upper_layer_activations, upper_layer.weights[0])
     elif d_wrt == "bias":
         raise NotImplementedError
-        d_next_d_current = t.batch_jacobian(next_activations, cur_layer.weights[1])
+        d_upper_d_lower = t.batch_jacobian(upper_layer_activations, lower_layer.weights[1])
     else:
         raise NotImplementedError
 
-    score_val = fx_modulate(d_next_d_current)
+    score_val = fx_modulate(d_upper_d_lower)
 
     # restore output activation
-    if next_layer == model.layers[-1]:
-        next_layer.activation = activation_temp
-    vprint("layer:{}--{}".format(next_layer.name, score_val.shape), verbose=verbose)
+    if upper_layer == model.layers[-1]:
+        upper_layer.activation = activation_temp
+    vprint("layer:{}--{}".format(upper_layer.name, score_val.shape), verbose=verbose)
 
     # TODO: does this still make sense in our new scenario, with differentiation with respect to activations?
     # # 2 aggragate across locations
