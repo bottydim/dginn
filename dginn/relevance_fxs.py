@@ -27,38 +27,51 @@ def relevance_select_(omega_val, input_layer, select_fx_):
     relevant = {}
 
     for l, relevance in omega_val.items():
-        if type(input_layer) is list and l in input_layer:
-            # non-aggragated data points
-            if relevance.shape[0] > 1:
-                relevant[l] = [range(relevance.shape[1]) for _ in range(relevance.shape[0])]
-            else:
-                relevant[l] = range(len(relevance))
-        elif l == input_layer:
-            # non-aggragated data points
-            if relevance.shape[0] > 1:
-                relevant[l] = np.array([range(relevance.shape[1]) for _ in range(relevance.shape[0])])
-            else:
-                relevant[l] = np.array(range(len(relevance)))
-                # process layers without weights
-        elif l.weights == []:
-            # non-aggragated data points
-            if relevance.shape[0] > 1:
-                relevant[l] = np.array([[] for _ in range(relevance.shape[0])])
-            else:
-                #in the event of bugs: used to be [] vs np.array([])
-                relevant[l] = np.array([])
-
-        else:
-            # non-aggragated data points
-            if relevance.shape[0] > 1:
-                # returns an array with the same number of neuron id for each dg
-                # the array contains the neuron ids that were selected as relevant
-                relevant[l] = np.apply_along_axis(select_fx_, 1, relevance)
-            else:
-                relevant[l] = []
-                idx = select_fx_(relevance)
-                relevant[l] = idx
+        relevant[l] = procesess_relevance_values(relevance, l, select_fx_, input_layer)
     return relevant
+
+
+def procesess_relevance_values(relevance, l, select_fx_, input_layer):
+    """
+
+    :param relevance: 2D-array data-points x neurons (to be filtered) should be lower layer
+    :param l: layer corresponding to the neurons
+    :param select_fx_: function to apply the relevance selection
+    :param input_layer: pass the input layer or list of input layers, if l is such
+    :return:
+    """
+    if type(input_layer) is list and l in input_layer:
+        # non-aggragated data points
+        if relevance.shape[0] > 1:
+            return [range(relevance.shape[1]) for _ in range(relevance.shape[0])]
+        else:
+            return range(len(relevance))
+    elif l == input_layer:
+        # non-aggragated data points
+        if relevance.shape[0] > 1:
+            return  np.array([range(relevance.shape[1]) for _ in range(relevance.shape[0])])
+        else:
+            return np.array(range(len(relevance)))
+            # process layers without weights
+    elif l.weights == []:
+        # non-aggragated data points
+        if relevance.shape[0] > 1:
+            return  np.array([[] for _ in range(relevance.shape[0])])
+        else:
+            # in the event of bugs: used to be [] vs np.array([])
+            return np.array([])
+
+    else:
+        # non-aggragated data points
+        if relevance.shape[0] > 1:
+            # returns an array with the same number of neuron id for each dg
+            # the array contains the neuron ids that were selected as relevant
+            return np.apply_along_axis(select_fx_, 1, relevance)
+        else:
+            return []
+            idx = select_fx_(relevance)
+            return idx
+
 
 # 3 functions below take
 # omega value: the compute relevances from the previous step

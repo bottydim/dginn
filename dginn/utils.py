@@ -1,3 +1,6 @@
+import numpy as np
+
+
 def vprint(*args, verbose=False):
     '''
     verbose = True
@@ -68,3 +71,7 @@ def make_dir(path):
 
 # FIG_FOLDER = Path(os.path.dirname(os.path.abspath("__file__"))).parents[0] / "dginn/figures/"
 # make_dir(FIG_FOLDER)
+def convert_to_numpy_safe(omega_vals_):
+    if type(omega_vals_) is not np.ndarray:
+        omega_vals_ = omega_vals_.numpy()
+    return omega_vals_
