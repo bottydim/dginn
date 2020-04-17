@@ -36,15 +36,18 @@ def main():
             dg_2 = extract_dgs_by_ids(dg_collection_query, indices)
             sim_matrix[i, j] = cf_dgs(dg_1, dg_2)
 
-    # Symmetrise the matrix
+    # Symmetrise the matrix because the above code computes half the similarity metric
     for i in range(n_samples):
         for j in range(n_samples):
             if sim_matrix[i, j] == -1:
                 sim_matrix[i, j] = sim_matrix[j, i]
 
+    #TODO: check for 0 entries and set to 1 (biggest distance possible)
 
     # We need distance, not similarity
     sim_matrix = sim_matrix.astype(np.float32)
+    sim_matrix[np.where(sim_matrix == 0)] = 1
+    #TODO document: np.reciprical is decreasing for x_i > 1
     dist_matrix = np.reciprocal(sim_matrix)
     for i in range(n_samples): dist_matrix[i, i] = 0
 

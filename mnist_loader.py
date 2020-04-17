@@ -55,11 +55,12 @@ def build_sample_model(input_shape, num_classes=10):
 
 
 def get_mnist_model(train_x, train_y, num_classes=10):
+    import dginn
     input_shape = train_x.shape[1:]
     model = build_sample_model(input_shape, num_classes)
     from pathlib import Path
-    path_dir = Path(os.path.dirname(os.path.abspath("__file__"))).parents[0]
-    path_dir = path_dir / "dginn/temp_models"
+    path_dir = Path(os.path.dirname(os.path.abspath(dginn.__file__))).parents[0]
+    path_dir = path_dir / "temp_models"
     # TODO we want to think about the sitatuion where output is 2; yet it is trained on [0] vs [1] or [0,2] vs [1,7]
     model_save_path = path_dir / "mnist_model_{}.h5".format(num_classes)
     model_save_path = str(model_save_path)

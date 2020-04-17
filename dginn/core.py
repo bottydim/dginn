@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections import OrderedDict
 
 import numpy as np
 import tensorflow as tf
@@ -34,7 +35,8 @@ class Relevance_Computer(ABC):
                  threshold=1,
                  strategy="binary",
                  include_input=True,
-                ):
+                 **kwargs
+                 ):
         '''
         :param model: TF Keras model that the dependency graphs are computed from.
 
@@ -74,7 +76,8 @@ class Relevance_Computer(ABC):
         self.omega_val = {}
         self.filter_neurons = False
         self.threshold = threshold
-        assert type(threshold) is int, "Please fix the  signiture"
+        # fix for int values!
+        assert type(threshold) is float or int, "Expected float, received {}.Please fix the type".format(type(threshold))
         if threshold < 1:
             self.filter_neurons = True
 
@@ -102,17 +105,19 @@ class Relevance_Computer(ABC):
         layer_end = self.layer_end
 
         # TODO decide if we want a class variable
-        omega_val = {}
+        omega_val = OrderedDict()
         last_layer = model.layers[-1]
         if ys is None:
             print("make sure to pass y vals")
             omega_val[last_layer] = ...
-            if not(agg_data_points or agg_neurons):
+            if not (agg_data_points or agg_neurons):
                 # TODO: this is a tmp fix, creating a random T/F matrix for the output layer
                 shape = list(model.layers[-1].output_shape)
                 shape[0] = data.shape[0]
                 self.relevant_neurons[model.layers[-1]] = np.random.choice(a=[False, True], size=shape)
         else:
+            if len(ys.shape) < 2:
+                ys = tf.compat.v1.keras.utils.to_categorical(ys, num_classes=last_layer.weights[0].shape[-1])
             omega_val[last_layer] = np.argmax(ys, axis=1)
             if not (agg_data_points or agg_neurons):
                 # use original shape because grad_threshold apply operations across all neurons
@@ -138,8 +143,10 @@ class Relevance_Computer(ABC):
                 # TODO: currently not aggregating accross locations of last convolutional layer of a model
                 if lower_layer.weights == []:
                     omega_val[lower_layer] = np.array([])
+                    vprint("layer:{}-skipped".format(lower_layer.name))
+                    # TODO quick and dirty, fix so that skipping works for multiple skipped layers
                     continue
-            vprint("layer:{}".format(lower_layer.name), verbose=verbose)
+            vprint("layers:{}--->{}".format(upper_layer.name, lower_layer.name), verbose=verbose)
             score_val = self.compute_fx(model, data, lower_layer, upper_layer, agg_data_points, agg_neurons,
                                         fx_modulate, verbose)
             omega_val[lower_layer] = score_val
@@ -325,20 +332,15 @@ class Gradients_Computer(Relevance_Computer):
     Score: gradient model loss wrt to the weight
     """
 
-    def __init__(self, model, fx_modulate=lambda x: x,
-                 loss=lambda x: tf.reduce_sum(x[:, :]),
-                 batch_size=128,
-                 layer_start=None,
-                 agg_data_points=True,
-                 agg_neurons=True,
-                 verbose=False):
+    def __init__(self, *args, **kwargs):
 
-        super().__init__(model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose)
+        super().__init__(*args, **kwargs)
 
         # TODO: rename this from "loss" (not really a loss)
         # Function of data-points being differentiated
-        self.loss = loss
-        self.batch_size = batch_size
+
+        self.loss = kwargs.get("loss") if kwargs.get("loss") else lambda x: tf.reduce_sum(x[:, :])
+        self.batch_size = kwargs.get("batch_size") if kwargs.get("batch_size") else 128
 
     def __call__(self, data, ys=None):
 
@@ -363,28 +365,7 @@ class Gradients_Computer(Relevance_Computer):
         # return omega_val
 
     def compute_fx(self, model, data, lower_layer, upper_layer, agg_data_points, agg_neurons, fx_modulate, verbose=0):
-        # TODO: decide whether to remove other "gradients" method, or rename, or...
-        if agg_data_points:
-            pass
-            omega_vals = self.gradients(data, lower_layer, model, self.batch_size, fx_modulate, self.loss, verbose)
-        else:
-            omega_vals = self.new_gradients(data, lower_layer, upper_layer, model, fx_modulate, verbose=0,
-                                            d_wrt="activations")
-        return omega_vals
-
-    def new_gradients(self, data, lower_layer, upper_layer, model, fx_modulate, verbose=0, d_wrt="activations"):
-        """
-
-        :param data:
-        :param lower_layer:
-        :param upper_layer: the upper layer (closer to the output)
-        :param model:
-        :param fx_modulate:
-        :param loss_:
-        :param verbose:
-        :param d_wrt: differentiate with respect to activations or weighs
-        :return:
-        """
+        # NB!
         # Compute gradient correctly for the last layer by changing the activation fx
         # obtain the logits of the model, instead of softmax output
         if upper_layer == model.layers[-1]:
@@ -394,19 +375,63 @@ class Gradients_Computer(Relevance_Computer):
         # Create submodel up to (and including) the current layer
 
         # special case: input
+        is_input_layer = False
         if type(lower_layer) is tf.Tensor:
-            lower_layer_output = lower_layer
+            lower_layer_tensor = lower_layer
+            is_input_layer = True
         else:
-            lower_layer_output = lower_layer.output
+            lower_layer_tensor = lower_layer.output
 
         if self.filter_neurons:
             # relevant neurons has to be an array
-            relevant_neurons = self.relevant_neurons[upper_layer]
-            upper_layer_output = tf.compat.v1.gather(upper_layer.output, relevant_neurons, axis=1, name="index_tensor")
+            if self.relevant_neurons.get(upper_layer) is None:
+                upper_layer = list(self.relevant_neurons.keys())[-1]
+                relevant_neurons = self.relevant_neurons[upper_layer]
+            else:
+                relevant_neurons = self.relevant_neurons[upper_layer]
+            # TODO if relevant neurons are (samples,relevant neurons, need to unite)
+            # possibly with binary will be faster
+            #TODO detect correct axis in convolutional
+            upper_layer_tensor = tf.compat.v1.gather(upper_layer.output, relevant_neurons, axis=1, name="index_tensor")
         else:
-            upper_layer_output = upper_layer.output
+            upper_layer_tensor = upper_layer.output
 
-        model_k = tf.keras.Model(inputs=model.inputs, outputs=[lower_layer_output, upper_layer_output])
+        # TODO for the convolutional case, it might be faster to aggregate across locations in advance?
+
+        # TODO: decide whether to remove other "gradients" method, or rename, or...
+        score_val = self.new_gradients(data, lower_layer_tensor, upper_layer_tensor, model, fx_modulate, verbose=0,
+                                       d_wrt="activations",
+                                       is_input_layer=is_input_layer)
+        if agg_data_points:
+            score_val = np.mean(score_val, axis=0)
+            # # TODO make sure this is what we want
+            # if not is_input_layer:
+            #     score_val = self.gradients(data, lower_layer_tensor, model, self.batch_size, fx_modulate, self.loss, verbose)
+            # else:
+
+        # restore output activation
+        if upper_layer == model.layers[-1]:
+            upper_layer.activation = activation_temp
+        vprint("layer:{}--{}".format(lower_layer.name, score_val.shape), verbose=verbose)
+
+        return score_val
+
+    def new_gradients(self, data, lower_layer_tensor, upper_layer_tensor, model, fx_modulate, verbose=0,
+                      d_wrt="activations",
+                      is_input_layer=False):
+        """
+
+        :param data:
+        :param lower_layer_tensor:
+        :param upper_layer_tensor: the upper layer (closer to the output)
+        :param model:
+        :param fx_modulate:
+        :param verbose:
+        :param d_wrt: differentiate with respect to activations or weighs
+        :return: score_val: tensor of shape? samples, upper, lower
+        """
+
+        model_k = tf.keras.Model(inputs=model.inputs, outputs=[lower_layer_tensor, upper_layer_tensor])
 
         # TODO: check how we handle multi-input data?!
         # TODO: fix strange layer name change : vs _
@@ -427,7 +452,7 @@ class Gradients_Computer(Relevance_Computer):
         # TODO worst case using tf.gather, we can iterate over neurons!
         with tf.GradientTape() as t:
             # special case: input
-            if type(lower_layer) is tf.Tensor:
+            if is_input_layer:
                 t.watch(tensor)
             lower_layer_activations, upper_layer_activations = model_k(tensor)
 
@@ -438,30 +463,45 @@ class Gradients_Computer(Relevance_Computer):
         # differentiate with respect to weights (parameters) or activations
         if d_wrt == "activations":
 
-            # special case: input
-            if type(lower_layer) is tf.Tensor:
-                d_upper_d_lower = t.batch_jacobian(upper_layer_activations, tensor)
+            if self.agg_neurons:
+                differentiator = t.gradient
             else:
-                d_upper_d_lower = t.batch_jacobian(upper_layer_activations, lower_layer_activations)
+                differentiator = t.batch_jacobian
+            # special case: input
+            if is_input_layer:
+                d_upper_d_lower = differentiator(upper_layer_activations, tensor)
+            else:
+                d_upper_d_lower = differentiator(upper_layer_activations, lower_layer_activations)
         elif d_wrt == "weights":
             raise NotImplementedError
             # TODO: think about the case that cur_layer input * output len(outputt) = # units in current
+            # this fails for the input layer!
+            dW, _ = t.gradient(current_loss, [*inter_l.weights])
+
             # Need first dimension of target shape ((50, 100)) and source shape ((100, 100)) to match.
             # first dimension is data points
-            d_upper_d_lower = t.batch_jacobian(upper_layer_activations, upper_layer.weights[0])
+            # it should be the upper layer weights, since they define how the upper layer activations are produced
+            d_upper_d_lower = t.batch_jacobian(upper_layer_activations, upper_layer_activations.weights[0])
+
+            # 2 aggragate across locations
+            # 2.1 4D
+            if len(score_val.shape) > 3:
+                # (3, 3, 3, 64) -> here aggregated across data-points already
+                # so need to average over axes (0, 1) vs (1, 2)
+                score_val = np.mean(score_val, axis=(0, 1))
+                vprint("\t 4D shape:{}".format(score_val.shape), verbose=verbose)
+            elif len(score_val.shape) > 2:
+                score_val = np.mean(score_val, axis=(0))
+                vprint("\t 3D shape:{}".format(score_val.shape), verbose=verbose)
+
         elif d_wrt == "bias":
             raise NotImplementedError
-            d_upper_d_lower = t.batch_jacobian(upper_layer_activations, lower_layer.weights[1])
+            d_upper_d_lower = t.batch_jacobian(upper_layer_activations, upper_layer_activations.weights[1])
         else:
             print(d_wrt)
             raise NotImplementedError
 
         score_val = fx_modulate(d_upper_d_lower)
-
-        # restore output activation
-        if upper_layer == model.layers[-1]:
-            upper_layer.activation = activation_temp
-        vprint("layer:{}--{}".format(upper_layer.name, score_val.shape), verbose=verbose)
 
         # TODO: does this still make sense in our new scenario, with differentiation with respect to activations?
         # # 2 aggragate across locations
@@ -487,19 +527,24 @@ class Gradients_Computer(Relevance_Computer):
         return score_val
 
     def gradients(self, data, l, model, batch_size, fx_modulate, loss_, verbose):
+        """
+
+        :param data:
+        :param l: must be a tensor of the  lower layer
+        :param model:
+        :param batch_size:
+        :param fx_modulate:
+        :param loss_:
+        :param verbose:
+        :return:
+        """
         # TODO  model_k = tf.keras.Model(inputs=model.inputs, outputs=[l.output])
         # AttributeError: 'Tensor' object has no attribute 'output' => Am I passing the correct l?
         # 1. compute values
-        model_k = tf.keras.Model(inputs=model.inputs, outputs=[l.output])
+        model_k = tf.keras.Model(inputs=model.inputs, outputs=[l])
         # last layer of the new model
         inter_l = model_k.layers[-1]
-        # NB!
-        # make sure to compute gradient correctly for the last layer by changing the activation fx
-        # obtain the logits of the model, instead of softmax output
-        if l == model.layers[-1]:
-            activation_temp = l.activation
-            if l.activation != tf.keras.activations.linear:
-                l.activation = tf.keras.activations.linear
+
         # intitialise score values
         score_val = np.zeros(inter_l.weights[0].shape)
         data_len = count_number_points(data)
@@ -528,9 +573,7 @@ class Gradients_Computer(Relevance_Computer):
                 dW, _ = t.gradient(current_loss, [*inter_l.weights])
 
             score_val += fx_modulate(dW)
-        # restore output activation
-        if l == model.layers[-1]:
-            l.activation = activation_temp
+
         vprint("layer:{}--{}".format(l.name, score_val.shape), verbose=verbose)
         # 2 aggragate across locations
         # 2.1 4D
@@ -623,7 +666,7 @@ class Weight_Activations_Computer(Relevance_Computer):
         return relevance_val
 
 
-def new_gradients(data, cur_layer, next_layer, model, fx_modulate, verbose, loss_):
+def new_gradients(data, cur_layer, next_layer, model, fx_modulate, verbose):
     raise NotImplementedError
 
 
@@ -634,11 +677,12 @@ class DepGraph:
 
     relevant_neurons = {}
 
-    def __init__(self, relevance_computer, strategy="binary"):
+    def __init__(self, relevance_computer, strategy="binary", verbose=False):
         self.__computer = relevance_computer
         self.__model = relevance_computer.model
         self.layer_start = relevance_computer.layer_start
         self.strategy = strategy
+        self.verbose = verbose
 
     @property
     def model(self):
@@ -672,7 +716,7 @@ class DepGraph:
         :return:
         '''
         data = X
-
+        verbose = self.verbose
         # Initialise neuron values
         filtered_neurones = {}
         # initialise using output classification neurons
@@ -687,8 +731,6 @@ class DepGraph:
             true_labels = y  # vs true_labels = np.argmax(y, axis=1)
             # print("True labels shape:", true_labels.shape)
             filtered_neurones[model.layers[-1]] = true_labels.astype(bool)
-
-        pre_compute_omega_vals
 
         if pre_compute_omega_vals:
 
@@ -742,7 +784,8 @@ class DepGraph:
                         omega_val[cur_layer] = np.array([])
                         continue
 
-                omega_val[cur_layer] = new_gradients(data, cur_layer, next_layer, model, fx_modulate, verbose, loss_)
+                omega_val[cur_layer] = new_gradients(data, cur_layer, next_layer, model, fx_modulate=lambda x: x,
+                                                     verbose=verbose)
                 vprint("\t omega_val.shape:{}".format(omega_val[cur_layer].shape), verbose=verbose)
 
             return omega_val
@@ -795,62 +838,6 @@ class DepGraph:
         elif strategy == "average":
             curr_layer_scores = np.mean(thresholded_mask, axis=1)
         return curr_layer_scores
-
-
-class DGINN():
-    relevant_neurons = {}
-    omega_vals = {}
-
-    def __init__(self, RelevanceComputer):
-        X_train = X
-        y_train = ys
-        computer = Relevance_Computer
-
-    def compute(self, xs, ys):
-        model = self.model
-        layer_start = self.layer_start
-        compute_fx = self.compute_fx()
-        dg_collections_list = compute_omega_vals(xs, ys, model, computer, agg_data_points=True)
-
-
-class DGINN_1():
-    relevant_neurons = {}
-
-    def __init__(self):
-        pass
-
-    def compute(self, xs, ys):
-
-        model = self.model
-        layer_start = self.layer_start
-        compute_fx = self.compute_fx()
-        # variable that stores all other kwargs could be passed as a partial function @ class creation
-        compute_params = self.compute_params
-        verbose = self.verbose
-        omega_val = {}
-
-        # TODO NOTICE THIS IS THE GREATEST BLOCKER since we will start getting neurons compute one @ time
-        # this was the problem in v0.1
-        relevant_neurons = ys
-        # loop over layers
-        for l in model.layers[layer_start:]:
-            # skips layers w/o weights
-            # e.g. input/pooling
-            if l.weights == []:
-                omega_val[l] = np.array([])
-                continue
-            # Paper Steps I.,II.,III.
-            # compute layer relevance values
-            relevance_values = compute_fx(data, l, model, relevant_neurons, **compute_params)
-
-            # Paper Step IV.
-
-            # TODO: return to previous line, once data point aggregation is fixed
-            # omega_val[l] = mean
-            omega_val[l] = np.expand_dims(relevance_values, axis=0)
-
-            vprint("\t omega_val.shape:{}".format(relevance_values.shape), verbose=verbose)
-        return omega_val
 
 
 def generate_index_arrays(thresholded_mask, index_array):
