@@ -5,13 +5,13 @@ from abc import ABC, abstractmethod
 from dginn.utils import *
 # this should be only in the call module, all other modules should not have it!!!
 # best keep it in the main fx!
+if int(tf.__version__.split(".")[0]) < 2:
+    config = tf.compat.v1.ConfigProto()
+    # config.gpu_options.visible_device_list = str('1')
+    # config.gpu_options.per_process_gpu_memory_fraction = 0.5
+    config.gpu_options.allow_growth = True
 
-config = tf.compat.v1.ConfigProto()
-# config.gpu_options.visible_device_list = str('1')
-# config.gpu_options.per_process_gpu_memory_fraction = 0.5
-config.gpu_options.allow_growth = True
-
-sess = tf.compat.v1.Session(config=config)
+    sess = tf.compat.v1.Session(config=config)
 
 
 class Relevance_Computer(ABC):
