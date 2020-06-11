@@ -21,6 +21,8 @@ sess = tf.compat.v1.Session(config=config)
 Implementation of dep. graphs, as outlined in Algorithm X in paper Y
 '''
 
+PREDICTED = "predicted"
+
 
 class Relevance_Computer(ABC):
     '''
@@ -65,6 +67,11 @@ class Relevance_Computer(ABC):
         '''
 
         # Assign property values to object
+
+        # if model is Sequential, convert to  functional API
+        if type(model) is tf.keras.Sequential:
+            l = model.layers[-1]
+            model = tf.keras.Model(inputs=model.inputs, outputs=l.output)
         self.model = model
         self.fx_modulate = fx_modulate
         self.layer_start = layer_start
@@ -77,7 +84,8 @@ class Relevance_Computer(ABC):
         self.filter_neurons = False
         self.threshold = threshold
         # fix for int values!
-        assert type(threshold) is float or int, "Expected float, received {}.Please fix the type".format(type(threshold))
+        assert type(threshold) is float or int, "Expected float, received {}.Please fix the type".format(
+            type(threshold))
         if threshold < 1:
             self.filter_neurons = True
 
@@ -109,12 +117,15 @@ class Relevance_Computer(ABC):
         last_layer = model.layers[-1]
         if ys is None:
             print("make sure to pass y vals")
+            print("TEST AND UNEXPECTED behaviour")
             omega_val[last_layer] = ...
             if not (agg_data_points or agg_neurons):
                 # TODO: this is a tmp fix, creating a random T/F matrix for the output layer
                 shape = list(model.layers[-1].output_shape)
                 shape[0] = data.shape[0]
                 self.relevant_neurons[model.layers[-1]] = np.random.choice(a=[False, True], size=shape)
+        elif ys == PREDICTED:
+            omega_val[last_layer] = model(data)
         else:
             if len(ys.shape) < 2:
                 ys = tf.compat.v1.keras.utils.to_categorical(ys, num_classes=last_layer.weights[0].shape[-1])
@@ -129,13 +140,16 @@ class Relevance_Computer(ABC):
         # TODO check for different input structures!
         # special case input
         if self.include_input:
-            layer_pairs = zip([model.layers[0].input] + model.layers[layer_start:-1],
+            layer_pairs = zip([model.layers[0]] + model.layers[layer_start:-1],
                               [model.layers[0]] + model.layers[layer_start + 1:])
+            # layer_pairs = zip([model.layers[0].input] + model.layers[layer_start:-1],
+            #                   [model.layers[0]] + model.layers[layer_start + 1:])
         else:
             layer_pairs = zip(model.layers[layer_start:-1], model.layers[layer_start + 1:])
         for i, (lower_layer, upper_layer) in list(enumerate(
                 list(layer_pairs)))[::-1]:
-            # special case input
+            # special case input (keep the input)
+            # the list and the enumeration are reversed
             if i != 0:
                 # skips layers w/o weights
                 # e.g. pooling
@@ -287,26 +301,33 @@ class Activations_Computer(Relevance_Computer):
                  agg_neurons=True,
                  verbose=False):
 
+        # set any aggregations
         super().__init__(model, fx_modulate, layer_start, agg_data_points, agg_neurons, verbose)
 
     # def __call__(self, data, ys=None):
     #     pass
+    def __call__(self, data, ys=PREDICTED):
+        return super().__call__(data, ys)
 
     @classmethod
     def compute_fx(cls, model, data, lower_layer, upper_layer, agg_data_points, agg_neurons, fx_modulate, verbose=0):
         l = lower_layer
         # If layer is Concatenate, concatenates the input
-        if type(l) is tf.keras.layers.Concatenate:
-            output = tf.keras.layers.concatenate(l.input)
+        if type(upper_layer) is tf.keras.layers.Concatenate:
+            output = tf.keras.layers.concatenate(l.output)
         else:
-            output = l.input
+            # check if not the input layer
+            if type(l) is not tf.Tensor:
+                output = l.output
+            else:
+                output = l
         # Note: "output" is the output of the previous layer (l-1), which is equal to the
         # input of the first layer
         # TODO: consider renaming the "output" variable
         # TODO: faster way is to include all layers to the output array.
         # Note: this will only work for the impostor DGs, not true DGs
-        model_k = tf.keras.Model(inputs=model.inputs, outputs=[output])
-        score_val = model_k.predict(data)
+        model_k = tf.keras.Model(inputs=model.inputs, outputs=output)
+        score_val = model_k(data)
         score_val = fx_modulate(score_val)
         vprint("layer:{}--{}".format(l.name, score_val.shape), verbose=verbose)
         # 2 aggragate across locations
@@ -321,6 +342,7 @@ class Activations_Computer(Relevance_Computer):
         # 3. aggregate across datapoints
         # ToDo: Check why abs? naturally this affect previous experiments
         if agg_data_points:
+
             score_val = np.mean(np.abs(score_val), axis=0)
         # 4. tokenize values
         # ===redundant for activations
@@ -391,7 +413,7 @@ class Gradients_Computer(Relevance_Computer):
                 relevant_neurons = self.relevant_neurons[upper_layer]
             # TODO if relevant neurons are (samples,relevant neurons, need to unite)
             # possibly with binary will be faster
-            #TODO detect correct axis in convolutional
+            # TODO detect correct axis in convolutional
             upper_layer_tensor = tf.compat.v1.gather(upper_layer.output, relevant_neurons, axis=1, name="index_tensor")
         else:
             upper_layer_tensor = upper_layer.output

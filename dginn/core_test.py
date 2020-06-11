@@ -1,12 +1,19 @@
 if __name__ == '__main__':
     import tensorflow as tf
 
-    tf.compat.v1.enable_eager_execution()
+    # tf.compat.v1.enable_eager_execution()
 
 from dginn.core import *
 
 
-def build_model(input_shape=(14,), num_class=2):
+def build_model(input_shape=(14,), num_class=2, seed=1):
+    from numpy.random import seed as set_seed
+    set_seed(seed)
+    if int(tf.__version__.split(".")[0]) < 2:
+        from tensorflow import set_random_seed
+        set_random_seed(seed)
+    else:
+        tf.random.set_seed(seed)
     num_layers = 2
     num_hidden = 100
 
