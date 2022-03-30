@@ -1,6 +1,6 @@
 if __name__ == '__main__':
     import tensorflow as tf
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
 import numpy as np
 from dataset_utils import filter_dataset
 from dg_aggregators.CountAggregator import CountAggregator
@@ -143,7 +143,7 @@ def get_count_aggregators_per_class(X_train, y_train, model, n_samples, Relevanc
 def compute_dg_per_datapoint(X_train, model, RelevanceComputer, n_layers=None):
     '''
 
-    :param X_train: data_set
+    :param X_train: data_set: takes more than one point,  pass the entire dataset for computational efficiency
     :param model: model
     :param RelevanceComputer:
     :return:

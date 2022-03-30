@@ -1,7 +1,7 @@
 from mnist_loader import load_mnist
 from dataset_utils import filter_dataset
 import imageio
-from data_loaders import randomly_sample
+from demo.data_loaders.mnist_loaders import randomly_sample
 
 
 def save_mnist_imgs(folder_path):

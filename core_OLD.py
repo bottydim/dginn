@@ -1,18 +1,17 @@
+import numpy
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 from abc import ABC, abstractmethod
-from matplotlib import pyplot as plt
-from utils import *
+from dginn.utils import *
 # this should be only in the call module, all other modules should not have it!!!
 # best keep it in the main fx!
+if int(tf.__version__.split(".")[0]) < 2:
+    config = tf.compat.v1.ConfigProto()
+    # config.gpu_options.visible_device_list = str('1')
+    # config.gpu_options.per_process_gpu_memory_fraction = 0.5
+    config.gpu_options.allow_growth = True
 
-config = tf.ConfigProto()
-# config.gpu_options.visible_device_list = str('1')
-# config.gpu_options.per_process_gpu_memory_fraction = 0.5
-config.gpu_options.allow_growth = True
-
-sess = tf.compat.v1.Session(config=config)
+    sess = tf.compat.v1.Session(config=config)
 
 
 class Relevance_Computer(ABC):
@@ -320,5 +319,18 @@ class Weight_Activations_Computer(Relevance_Computer):
 
 
 def __main__():
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
     print("Core main!")
+
+
+def compute_omega_vals(X_train, y_train, model, computer, agg_data_points):
+    compute_fx = computer(model=model, agg_data_points=agg_data_points)
+    dg_collections_list = []
+    all_classes = np.unique(y_train).tolist()
+    for cls in all_classes:
+        idx_cls = np.where(y_train == cls)[0]
+        # print(idx_cls[0:10])
+        #     dgs_cls = extract_dgs_by_ids(relevances, idx_cls)
+        dgs_cls = compute_fx(X_train[idx_cls, :])
+        dg_collections_list.append(dgs_cls)
+    return dg_collections_list

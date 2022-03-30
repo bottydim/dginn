@@ -4,14 +4,14 @@ from setuptools import setup, find_packages
 
 description = 'Library for Interpretable Deep Learning'
 long_description = description
-version = '0.1.0.dev1'
+version = '0.2.0.dev1'
 
 setup(name='dginn',
       version=version,
       description=description,
       long_description=long_description,
       # url='https://github.com/bottydim/xai',
-      authors=['Botty Dimanov', "Dmitry Khazdan", "Plamen Mangov"],
+      authors=['Botty Dimanov', "Dmitry Khazdan"],
       author_email='develop@uvhotspot.com',
       license='Apache License 2.0',
       packages=find_packages(exclude=['*.debug', 'debug.*', '*.debug.*', 'contrib', 'docs', 'tests*', 'test*']),

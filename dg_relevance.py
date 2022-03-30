@@ -2,20 +2,20 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 if __name__ == '__main__':
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
 from matplotlib import pyplot as plt
-from utils import vprint, Timer
+from dginn.utils import vprint, Timer
 import math
 
 # this should be only in the call module, all other modules should not have it!!!
 # best keep it in the main fx! 
-# tf.enable_eager_execution()
-config = tf.ConfigProto()
+# tf.compat.v1.enable_eager_execution()
+config = tf.compat.v1.ConfigProto()
 # config.gpu_options.visible_device_list = str('1')
 # config.gpu_options.per_process_gpu_memory_fraction = 0.5
 config.gpu_options.allow_growth = True
 
-sess = tf.Session(config=config)
+sess = tf.compat.v1.Session(config=config)
 
 global verbose
 verbose = False
@@ -1129,7 +1129,6 @@ def plot_input_importance(relevance_list, input_layers, data_set_cls_dict):
 def main():
     from mnist_loader import load_mnist, build_sample_model
     from dataset_utils import filter_dataset
-    from aggregator_utils import get_count_aggregators, uncertainty_pred, compute_dg
     from core import Activations_Computer
     import os
 

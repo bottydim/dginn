@@ -2,9 +2,11 @@
 
 .DS_Store
 *.pyc
-*.pyc
 __pycache__/dg_relevance.cpython-35.pyc
 *.h5
+*.npz
+*.data-numeric
+*.npy
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -145,3 +147,6 @@ figures/
 
 # PyCharm
 .idea/*
+
+#config files
+*.ini

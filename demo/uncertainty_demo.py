@@ -1,7 +1,7 @@
 if __name__ == '__main__':
     import tensorflow as tf
 
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
 
 import os
 from collections import defaultdict
@@ -15,7 +15,7 @@ from core import Activations_Computer
 from data_visualizers import visualize_samples
 from dataset_utils import filter_dataset
 from mnist_loader import load_mnist, get_mnist_model
-
+import matplotlib.pyplot as plt
 
 def compare_points(x, aggregators):
     raise NotImplementedError()

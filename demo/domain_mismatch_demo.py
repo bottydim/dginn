@@ -1,17 +1,16 @@
 if __name__ == '__main__':
     import tensorflow as tf
-    tf.enable_eager_execution()
 
+    tf.compat.v1.enable_eager_execution()
 
-from data_loaders import randomly_sample
-from mnist_loader import load_mnist, get_mnist_model
-from aggregator_utils import compute_dg_per_datapoint
-from aggregator_utils import get_count_aggregators, extract_dgs_by_ids
-from core import *
-from core import Activations_Computer
-from dataset_utils import filter_dataset
 import numpy as np
 
+from aggregator_utils import compute_dg_per_datapoint
+from aggregator_utils import get_count_aggregators, extract_dgs_by_ids
+from core import Activations_Computer
+from dataset_utils import filter_dataset
+from demo.data_loaders.mnist_loaders import randomly_sample
+from mnist_loader import load_mnist, get_mnist_model
 
 
 def compute_domain_mismatch_threshold(train_x, cls_aggregator, model):
@@ -34,7 +33,6 @@ def compute_domain_mismatch_threshold(train_x, cls_aggregator, model):
     # TODO: ideally, add a vectorised form of similarity computation, in order to parallelise it
 
     for i in range(n_samples):
-
         # Compute dep. graph of next point
         indices = [i]
         dg = extract_dgs_by_ids(dg_collection_query, indices)
@@ -68,7 +66,6 @@ def compute_mismatch_thresholds(train_x, train_y, cls_aggregators, model):
     sim_thresholds = np.zeros((len(all_classes)))
 
     for i, cls in enumerate(all_classes):
-
         # Filter out data for particular class
         cls_x, cls_y = filter_dataset((train_x, train_y), [cls])
 
@@ -122,10 +119,7 @@ def check_domain(x, cls_aggregators, thresholds, model):
     return same_domain
 
 
-
-
 def main():
-
     # Load dataset
     train_x, train_y, test_x, test_y = load_mnist()
 
@@ -157,29 +151,24 @@ def main():
     same_domain_predictions = check_domain(test_x, aggregators, domain_thresholds, model)
 
     print("=====")
-    print("\n"*5)
+    print("\n" * 5)
 
     diff_domain_predictions = check_domain(diff_domain_x, aggregators, domain_thresholds, model)
 
     print("Predictions for points in the same domain: ")
-    same = sum(same_domain_predictions)/len(same_domain_predictions) * 100
+    same = sum(same_domain_predictions) / len(same_domain_predictions) * 100
     print(100 - same)
 
     print("\n" * 3)
-    print("="*10)
+    print("=" * 10)
 
     print("Predictions for different domain: ")
-    diff = sum(diff_domain_predictions)/len(diff_domain_predictions) * 100
+    diff = sum(diff_domain_predictions) / len(diff_domain_predictions) * 100
     print(100 - diff)
 
     # TODO: visualise flagged 1s and unflagged 2s
     # Expect to see: weird 2s that look like 0/1, and weird 1s that don't look ordinary
 
 
-
-
-
-main()
-
-
-
+if __name__ == '__main__':
+    main()
